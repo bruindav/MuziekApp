@@ -1,4 +1,4 @@
-<!-- MuziekApp V15 | index.html | Laatste wijziging: V15 - Deezer API fallback als MusicBrainz niets vindt -->
+<!-- MuziekApp V16 | index.html | Laatste wijziging: V16 - Slimme zoektitel reiniging (disc 1, remaster, etc.) voor MusicBrainz en Deezer -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -590,6 +590,22 @@ function renderTrackList(album) {
 }
 
 
+// Verwijder veelvoorkomende toevoegingen die zoekresultaten bemoeilijken
+function cleanForSearch(title) {
+  return title
+    // disc/cd nummers: (disc 1), (cd 2), (disk 1), disc 1, cd1 etc.
+    .replace(/[\(\[,\-\s]*(disc|disk|cd|part|deel)\s*\d+[\)\]]?/gi, '')
+    // Versie-aanduidingen: (remaster), [deluxe edition], (special edition), (bonus tracks) etc.
+    .replace(/[\(\[](remaster(ed)?|deluxe|special|limited|bonus|anniversary|expanded|collector|edition|version|re-?issue)[^\)\]]*[\)\]]/gi, '')
+    // Jaar tussen haakjes: (1999), [2004]
+    .replace(/[\(\[]\s*\d{4}\s*[\)\]]/g, '')
+    // Overblijvende lege haakjes en nette whitespace
+    .replace(/[\(\[]\s*[\)\]]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/[-–,]\s*$/, '')
+    .trim();
+}
+
 async function fetchTracks(aid, force=false) {
   if (trackCache[aid] && trackCache[aid].status !== 'error' && !force) return;
   trackCache[aid] = { status: 'loading', releases: [], selectedIdx: 0 };
@@ -602,7 +618,7 @@ async function fetchTracks(aid, force=false) {
   try {
     // Stap 1: zoek releases
     const q = encodeURIComponent(
-      'artist:"' + album.artist.replace(/"/g,'') + '" AND release:"' + album.title.replace(/"/g,'') + '"'
+      'artist:"' + cleanForSearch(album.artist).replace(/"/g,'') + '" AND release:"' + cleanForSearch(album.title).replace(/"/g,'') + '"'
     );
     const searchRes = await fetch(
       'https://musicbrainz.org/ws/2/release?query=' + q + '&limit=10&fmt=json',
@@ -661,7 +677,7 @@ async function fetchTracksFromDeezer(aid, album) {
   try {
     // Deezer publieke search API — CORS-vriendelijk via een proxy want Deezer blokkeert direct browser calls
     // We gebruiken de Deezer search om het album te vinden
-    const q = encodeURIComponent(album.artist + ' ' + album.title);
+    const q = encodeURIComponent(cleanForSearch(album.artist) + ' ' + cleanForSearch(album.title));
     const res = await fetch('https://api.deezer.com/search/album?q=' + q + '&limit=8&output=json');
 
     let data;
