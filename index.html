@@ -1,4 +1,4 @@
-<!-- MuziekApp V20 | index.html | Laatste wijziging: V20 - Uitgebreide CSV import (barcode, format, location, herkenningsnr, componist, producer, muzikant), alle velden in formulieren en detail modal -->
+<!-- MuziekApp V21 | index.html | Laatste wijziging: V21 - Playlist tab layout fix (desktop+mobiel), collapsible beheer-blokken -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -30,7 +30,46 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 
 /* ── LAYOUT ── */
-.layout { display:grid; grid-template-columns:240px 1fr 290px; flex:1; overflow:hidden; }
+#appLayout {
+  display: grid;
+  grid-template-columns: 240px 1fr 290px;
+  grid-template-rows: 1fr;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Sidebar altijd in grid, zichtbaarheid via JS */
+#sidebar { grid-column: 1; }
+#mainArea { grid-column: 2; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
+#rightPanel { grid-column: 3; }
+
+/* Bibliotheek tab: middel kolom vol, sidebar+panel verborgen */
+#appLayout.tab-bibliotheek { grid-template-columns: 0 1fr 0; }
+#appLayout.tab-bibliotheek #sidebar,
+#appLayout.tab-bibliotheek #rightPanel { display:none; }
+
+/* Playlists tab: alle 3 kolommen */
+#appLayout.tab-playlists { grid-template-columns: 240px 1fr 290px; }
+
+/* Beheer tab: middel kolom vol */
+#appLayout.tab-beheer { grid-template-columns: 0 1fr 0; }
+#appLayout.tab-beheer #sidebar,
+#appLayout.tab-beheer #rightPanel { display:none; }
+
+/* Collapsible beheer cards */
+.beheer-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+.beheer-card-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 18px; cursor:pointer; user-select:none;
+  transition:background .15s;
+}
+.beheer-card-header:hover { background:var(--surface2); }
+.beheer-card-header h3 { font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; margin:0; }
+.beheer-card-chevron { color:var(--muted); font-size:12px; transition:transform .2s; }
+.beheer-card.open .beheer-card-chevron { transform:rotate(90deg); }
+.beheer-card-body { display:none; padding:0 18px 18px; }
+.beheer-card.open .beheer-card-body { display:block; }
 
 /* ── SIDEBAR ── */
 .sidebar { background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; overflow-y:auto; }
@@ -263,13 +302,21 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   }
   .tab.active { border-top-color:var(--accent); border-bottom:none; color:var(--accent); }
 
-  /* Layout: één kolom, geen grid */
-  #mainWrapper {
-    display:flex; flex-direction:column;
-    flex:1; overflow:hidden;
-    padding-bottom:56px; /* ruimte voor bottom nav */
+  /* Layout: mobile override — alles één kolom */
+  #appLayout,
+  #appLayout.tab-bibliotheek,
+  #appLayout.tab-playlists,
+  #appLayout.tab-beheer {
+    display: flex !important;
+    flex-direction: column;
+    grid-template-columns: none !important;
   }
-  .layout { display:block !important; }
+  #appLayout.tab-bibliotheek #sidebar,
+  #appLayout.tab-beheer #sidebar,
+  #appLayout.tab-bibliotheek #rightPanel,
+  #appLayout.tab-beheer #rightPanel { display:none !important; }
+  #appLayout.tab-playlists #sidebar,
+  #appLayout.tab-playlists #rightPanel { display:flex !important; }
 
   /* Sidebar als slide-in sheet */
   .sidebar {
@@ -373,7 +420,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
 </div>
 
 <div id="mainWrapper">
-<div style="display:flex;flex:1;overflow:hidden">
+<div id="appLayout">
 
 <!-- Sidebar overlay voor mobiel -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
@@ -423,8 +470,12 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   <div class="beheer-view" id="beheerView">
 
     <!-- Barcode scanner + Album toevoegen -->
-    <div class="beheer-card">
-      <h3>➕ Album Toevoegen</h3>
+    <div class="beheer-card open" id="card-toevoegen">
+      <div class="beheer-card-header" onclick="toggleCard('card-toevoegen')">
+        <h3>➕ Album Toevoegen</h3>
+        <span class="beheer-card-chevron">▶</span>
+      </div>
+      <div class="beheer-card-body">
 
       <!-- Barcode scan knop -->
       <div id="scanSection" style="margin-bottom:14px">
@@ -477,11 +528,16 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
           <button class="btn-primary" onclick="saveNewAlbum()">💾 Album Opslaan</button>
         </div>
       </div>
+      </div>
     </div>
 
     <!-- CSV Import -->
-    <div class="beheer-card">
-      <h3>⬆ CSV Importeren</h3>
+    <div class="beheer-card" id="card-csv">
+      <div class="beheer-card-header" onclick="toggleCard('card-csv')">
+        <h3>⬆ CSV Importeren</h3>
+        <span class="beheer-card-chevron">▶</span>
+      </div>
+      <div class="beheer-card-body">
       <div class="import-zone" onclick="document.getElementById('csvInput').click()">
         <div class="import-zone-icon">📄</div>
         <p>Klik om een CSV-bestand te selecteren<br>
@@ -493,25 +549,36 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
         <span id="importMsg">Bezig…</span>
         <div class="import-progress-bar-wrap"><div class="import-progress-bar" id="importBar"></div></div>
       </div>
+      </div>
     </div>
 
     <!-- Device types beheer -->
-    <div class="beheer-card">
-      <h3>💿 Drager Types Beheren</h3>
+    <div class="beheer-card" id="card-devices">
+      <div class="beheer-card-header" onclick="toggleCard('card-devices')">
+        <h3>💿 Drager Types Beheren</h3>
+        <span class="beheer-card-chevron">▶</span>
+      </div>
+      <div class="beheer-card-body">
       <div id="deviceTypeList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
       <div style="display:flex;gap:8px">
         <input class="form-input" id="newDeviceTypeInput" placeholder="Nieuw type…" style="flex:1" onkeydown="if(event.key==='Enter')addDeviceType()">
         <button class="btn-primary" onclick="addDeviceType()">Toevoegen</button>
       </div>
+      </div>
     </div>
 
     <!-- Storage labels beheer -->
-    <div class="beheer-card">
-      <h3>📦 Opberglocaties Beheren</h3>
+    <div class="beheer-card" id="card-storage">
+      <div class="beheer-card-header" onclick="toggleCard('card-storage')">
+        <h3>📦 Opberglocaties Beheren</h3>
+        <span class="beheer-card-chevron">▶</span>
+      </div>
+      <div class="beheer-card-body">
       <div id="storageLabelList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
       <div style="display:flex;gap:8px">
         <input class="form-input" id="newStorageLabelInput" placeholder="Nieuwe locatie…" style="flex:1" onkeydown="if(event.key==='Enter')addStorageLabel()">
         <button class="btn-primary" onclick="addStorageLabel()">Toevoegen</button>
+      </div>
       </div>
     </div>
 
@@ -719,25 +786,35 @@ window.switchTab = function(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => {
     t.classList.toggle('active', ['bibliotheek','playlists','beheer'][i] === tab);
   });
-  const isMobile = window.innerWidth <= 768;
+
+  // Toggle layout via CSS class op appLayout
+  const layout = document.getElementById('appLayout');
+  layout.className = 'tab-' + tab;
+
+  // Views
   document.getElementById('libView').style.display    = (tab==='bibliotheek'||tab==='playlists') ? 'flex' : 'none';
   document.getElementById('beheerView').classList.toggle('active', tab==='beheer');
 
-  // Desktop: toon/verberg sidebar en panel
-  if (!isMobile) {
-    document.getElementById('sidebar').style.display    = tab==='playlists' ? 'flex' : 'none';
-    document.getElementById('rightPanel').style.display = tab==='playlists' ? 'flex' : 'none';
-  }
+  const isMobile = window.innerWidth <= 768;
 
   // Mobiel: FAB alleen in playlists tab
   const fab = document.getElementById('fabBtn');
   if (fab) fab.style.display = (isMobile && tab==='playlists') ? 'flex' : 'none';
+
+  // Hamburger alleen in playlists tab op mobiel
+  const hamburger = document.getElementById('hamburgerBtn');
+  if (hamburger) hamburger.style.display = (isMobile && tab==='playlists') ? 'block' : 'none';
 
   // Mobiel: sidebar sluit bij tab wissel
   if (isMobile) closeSidebar();
 
   if (tab==='bibliotheek') document.getElementById('viewTitle').textContent='Alle Albums';
   render();
+};
+
+// ── COLLAPSIBLE BEHEER CARDS ──────────────────────────────────────
+window.toggleCard = function(id) {
+  document.getElementById(id).classList.toggle('open');
 };
 
 // ── MOBILE HELPERS ────────────────────────────────────────────────
@@ -1821,16 +1898,15 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 // ── INIT ──────────────────────────────────────────────────────────
 function applyMobileLayout() {
   const isMobile = window.innerWidth <= 768;
-  const hamburger = document.getElementById('hamburgerBtn');
-  if (hamburger) hamburger.style.display = (isMobile && currentTab==='playlists') ? 'block' : 'none';
   const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
   if (sidebarCloseBtn) sidebarCloseBtn.style.display = isMobile ? 'block' : 'none';
   if (!isMobile) {
-    // Desktop: verwijder mobiele open classes
     document.getElementById('sidebar').classList.remove('open');
     document.getElementById('rightPanel').classList.remove('open');
     document.getElementById('sidebarOverlay').classList.remove('open');
   }
+  // Re-apply tab to update FAB/hamburger visibility
+  switchTab(currentTab);
 }
 window.addEventListener('resize', () => { applyMobileLayout(); switchTab(currentTab); });
 
