@@ -1,4 +1,4 @@
-<!-- MuziekApp V39 | index.html | Laatste wijziging: V39 - Height chain fix: height:0+flex:1 truc + JS vangnet berekent exacte hoogte -->
+<!-- MuziekApp V40 | index.html | Laatste wijziging: V40 - JS forceert hoogte mainWrapper via cssText, omzeilt CSS cascade probleem -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -1272,6 +1272,12 @@ window.switchTab = function(tab) {
   });
   const layout = document.getElementById('appLayout');
   layout.className = 'tab-' + tab;
+  // Herstel appLayout grid na JS override
+  const isMobile = window.innerWidth <= 768;
+  if (!isMobile) {
+    const cols = tab==='playlists' ? '240px 1fr 290px' : '0 1fr 0';
+    layout.style.cssText = 'flex:1; min-height:0; overflow:hidden; display:grid; grid-template-columns:' + cols + ';';
+  }
 
   const libView    = document.getElementById('libView');
   const beheerView = document.getElementById('beheerView');
@@ -2690,24 +2696,28 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 // ── INIT ──────────────────────────────────────────────────────────
 function applyMobileLayout() {
-  // JS vangnet: bereken exacte hoogte voor mainWrapper
   const header  = document.querySelector('header');
-  const tabs    = document.querySelector('.tabs');
+  const tabsEl  = document.querySelector('.tabs');
   const wrapper = document.getElementById('mainWrapper');
-  if (header && tabs && wrapper) {
-    const isMobile = window.innerWidth <= 768;
-    if (isMobile) {
-      // Op mobiel: tabs zitten onderaan (fixed), header bovenaan
-      const used = header.offsetHeight;
-      const tabsH = 50; // bottom tabs
-      wrapper.style.height = (window.innerHeight - used - tabsH) + 'px';
-    } else {
-      // Desktop: tabs zitten boven de content
-      const used = header.offsetHeight + tabs.offsetHeight;
-      wrapper.style.height = (window.innerHeight - used) + 'px';
-    }
-    wrapper.style.overflow = 'hidden';
-  }
+  const layout  = document.getElementById('appLayout');
+  const mainArea= document.getElementById('mainArea');
+
+  if (!header || !tabsEl || !wrapper) { switchTab(currentTab); return; }
+
+  const isMobile = window.innerWidth <= 768;
+
+  // Bereken beschikbare hoogte
+  let usedTop = header.offsetHeight;
+  let usedBottom = isMobile ? 50 : tabsEl.offsetHeight;
+  if (!isMobile) usedTop += tabsEl.offsetHeight;
+  const available = window.innerHeight - usedTop - (isMobile ? 0 : 0);
+  const wrapH = isMobile ? (window.innerHeight - usedTop - 50) : (window.innerHeight - usedTop);
+
+  // Forceer hoogte via inline style — overschrijft alle CSS
+  wrapper.style.cssText = 'height:' + wrapH + 'px !important; overflow:hidden; display:flex; flex-direction:column;';
+  if (layout) layout.style.cssText = 'flex:1; min-height:0; overflow:hidden; display:' + (isMobile ? 'flex' : 'grid') + '; ' + (isMobile ? 'flex-direction:column;' : 'grid-template-columns:' + (currentTab==='playlists' ? '240px 1fr 290px' : '0 1fr 0') + ';');
+  if (mainArea) mainArea.style.cssText = 'flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden;';
+
   switchTab(currentTab);
 }
 window.addEventListener('resize', applyMobileLayout);
