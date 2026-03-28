@@ -1,3 +1,4 @@
+<!-- MuziekApp V1 | index.html | Laatste wijziging: V1 -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -208,6 +209,17 @@
       <div id="plList"></div>
       <button class="new-pl-btn" onclick="openModal()">+ Nieuwe Playlist</button>
     </div>
+    <div style="padding:14px 18px;border-top:1px solid var(--border);flex-shrink:0">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between">
+        <span>Opgeslagen lokaal</span>
+        <span id="storageInfo">—</span>
+      </div>
+      <button onclick="clearStorage()" style="width:100%;padding:7px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;transition:all .15s"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+        🗑 Database wissen
+      </button>
+    </div>
   </aside>
 
   <main class="main">
@@ -356,6 +368,7 @@ function parseCSV(text) {
 
   updateFilters(); updateStats(); render();
   toast(`${added} albums geïmporteerd${skipped?`, ${skipped} overgeslagen`:''} ✓`, 'ok');
+  saveToStorage();
 }
 
 function findCol(headers, aliases) {
@@ -470,6 +483,7 @@ function createPlaylist(name) {
   activePlaylistId = pl.id;  // selecteer als doel, maar wissel view NIET
   renderPlaylists(); renderPanel(); render(); updateStats();
   toast(`Playlist "${name}" aangemaakt — sleep albums hierin ✓`, 'ok');
+  saveToStorage();
 }
 
 function renderPlaylists() {
@@ -504,11 +518,12 @@ function delPlaylist(id) {
   playlists = playlists.filter(p=>p.id!==id);
   if (activePlaylistId===id) showAll(); else renderPlaylists();
   updateStats(); toast('Playlist verwijderd.','');
+  saveToStorage();
 }
 
 function renamePlaylist(val) {
   const pl = playlists.find(p=>p.id===activePlaylistId);
-  if (pl) { pl.name=val; renderPlaylists(); }
+  if (pl) { pl.name=val; renderPlaylists(); saveToStorage(); }
 }
 
 function addSelected() {
@@ -520,6 +535,7 @@ function addSelected() {
   selectedIds.clear();
   renderPlaylists(); renderPanel(); render(); updateStats();
   toast(`${added} album${added!==1?'s':''} toegevoegd ✓`,'ok');
+  saveToStorage();
 }
 
 // ── PANEL ─────────────────────────────────────────────────────────
@@ -573,6 +589,7 @@ function removeFromPlaylist(aid) {
   if (!pl) return;
   pl.ids = pl.ids.filter(id=>id!==aid);
   renderPlaylists(); renderPanel(); render(); updateStats();
+  saveToStorage();
 }
 
 // ── SPOTIFY OAUTH (PKCE) ──────────────────────────────────────────
@@ -815,6 +832,49 @@ function updateStats() {
   document.getElementById('statAlbums').innerHTML = `Albums: <strong>${albums.length}</strong>`;
   document.getElementById('statPlaylists').innerHTML = `Playlists: <strong>${playlists.length}</strong>`;
   document.getElementById('allCount').textContent = `${albums.length} albums`;
+  const si = document.getElementById('storageInfo');
+  if (si) si.textContent = albums.length ? storageSize() : '—';
+}
+
+// ── LOCAL STORAGE ─────────────────────────────────────────────────
+const LS_ALBUMS    = 'muziekapp_albums';
+const LS_PLAYLISTS = 'muziekapp_playlists';
+
+function saveToStorage() {
+  try {
+    localStorage.setItem(LS_ALBUMS,    JSON.stringify(albums));
+    localStorage.setItem(LS_PLAYLISTS, JSON.stringify(playlists));
+  } catch(e) {
+    // Quota overschreden (>5MB) — toon waarschuwing
+    toast('Opslag bijna vol — bibliotheek niet opgeslagen.', 'err');
+  }
+}
+
+function loadFromStorage() {
+  try {
+    const a = localStorage.getItem(LS_ALBUMS);
+    const p = localStorage.getItem(LS_PLAYLISTS);
+    if (a) albums    = JSON.parse(a);
+    if (p) playlists = JSON.parse(p);
+  } catch(e) { /* corrupte data — begin fresh */ }
+}
+
+function clearStorage() {
+  if (!confirm('Weet je zeker dat je de hele database wilt wissen?')) return;
+  localStorage.removeItem(LS_ALBUMS);
+  localStorage.removeItem(LS_PLAYLISTS);
+  albums = []; playlists = [];
+  activePlaylistId = null; currentView = 'all'; selectedIds.clear();
+  updateFilters(); updateStats(); render(); renderPlaylists(); renderPanel();
+  toast('Database gewist.', '');
+}
+
+function storageSize() {
+  const bytes = (localStorage.getItem(LS_ALBUMS)||'').length
+              + (localStorage.getItem(LS_PLAYLISTS)||'').length;
+  if (bytes < 1024)       return bytes + ' B';
+  if (bytes < 1024*1024)  return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(2) + ' MB';
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────
@@ -873,6 +933,7 @@ document.getElementById('panelList').addEventListener('drop', e => {
     renderPlaylists(); renderPanel(); render(); updateStats();
     const a = albums.find(x=>x.id===dragAlbumId);
     toast(`"${a ? a.title : 'Album'}" toegevoegd ✓`, 'ok');
+    saveToStorage();
   } else {
     toast('Staat al in de playlist.', '');
   }
@@ -921,12 +982,15 @@ function onPanelDrop(e, targetAid) {
   pl.ids.splice(toIdx, 0, panelDragId);
   panelDragId = null;
   renderPanel();
+  saveToStorage();
 }
 
 updateStats();
+// Data laden uit localStorage bij opstarten
+loadFromStorage();
+updateFilters(); updateStats(); renderPlaylists(); render();
 // Spotify OAuth callback afhandelen na redirect
 handleSpotifyCallback();
 </script>
 </body>
 </html>
-
