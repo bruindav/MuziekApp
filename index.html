@@ -1,4 +1,4 @@
-<!-- MuziekApp V7 | index.html | Laatste wijziging: V7 - Debug versie voor Spotify 403 diagnose -->
+<!-- MuziekApp V8 | index.html | Laatste wijziging: V8 - Deezer zoeken terug, Spotify uitgeschakeld (vereist Premium), beide strips in panel -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -15,6 +15,7 @@
     --accent: #ff4d6d;
     --spotify: #1db954;
     --spotify-dark: #158a3e;
+    --deezer: #a259ff;
     --text: #e8e8f0;
     --muted: #6b6b85;
     --green: #4ecca3;
@@ -90,9 +91,21 @@
   .panel-btns { display: flex; gap: 7px; flex-wrap: wrap; }
   .pbtn { flex: 1; padding: 7px 10px; border-radius: 8px; border: none; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: opacity .15s, transform .1s; white-space: nowrap; }
   .pbtn:hover { opacity: .85; transform: translateY(-1px); }
-  .pbtn-spotify { background: linear-gradient(135deg, #1db954, #158a3e); color: white; }
+  .pbtn-spotify { background: linear-gradient(135deg, #1db954, #158a3e); color: white; opacity: .5; cursor: not-allowed; }
+  .pbtn-spotify:hover { opacity: .5; transform: none; }
+  .pbtn-deezer { background: linear-gradient(135deg, #a259ff, #7c3aed); color: white; }
   .pbtn-json { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
   .pbtn-csv { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+
+  /* Deezer strip */
+  .dz-strip { padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .dz-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+  .dz-row { display: flex; align-items: center; gap: 9px; background: rgba(162,89,255,.08); border: 1px solid rgba(162,89,255,.25); border-radius: 9px; padding: 9px 11px; }
+  .dz-icon { font-size: 18px; }
+  .dz-info { flex: 1; min-width: 0; }
+  .dz-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dz-artist { font-size: 11px; color: var(--muted); }
+  .dz-open { padding: 5px 11px; background: var(--deezer); border: none; border-radius: 6px; color: white; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
 
   /* Spotify status strip */
   .sp-strip { padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
@@ -122,8 +135,9 @@
   .pl-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pl-artist { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pl-sp { opacity: 0; transition: opacity .15s; background: none; border: none; color: var(--spotify); cursor: pointer; font-size: 13px; padding: 2px 4px; }
+  .pl-dz { opacity: 0; transition: opacity .15s; background: none; border: none; color: var(--deezer); cursor: pointer; font-size: 13px; padding: 2px 4px; }
   .pl-rm { opacity: 0; transition: opacity .15s; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 4px; }
-  .pl-album:hover .pl-sp, .pl-album:hover .pl-rm { opacity: 1; }
+  .pl-album:hover .pl-sp, .pl-album:hover .pl-dz, .pl-album:hover .pl-rm { opacity: 1; }
   .pl-rm:hover { color: var(--accent); }
 
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s; }
@@ -180,10 +194,10 @@
     <span id="statPlaylists">Playlists: <strong>0</strong></span>
   </div>
   <div id="spotifyLoginArea">
-    <button onclick="spotifyLogin()" style="padding:8px 16px;background:var(--spotify);border:none;border-radius:20px;color:white;font-family:'DM Sans',sans-serif;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-      Inloggen met Spotify
-    </button>
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:7px 12px;border-radius:20px;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="opacity:.5"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+      Spotify (vereist Premium)
+    </div>
   </div>
 </header>
 
@@ -250,9 +264,10 @@
       <input class="panel-name-input" id="panelName" type="text" oninput="renamePlaylist(this.value)">
       <div class="panel-meta" id="panelMeta">0 albums</div>
       <div class="panel-btns">
-        <button class="pbtn pbtn-spotify" onclick="exportToSpotify()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
-          Naar Spotify
+        <button class="pbtn pbtn-deezer" onclick="openPlaylistDeezer()" title="Open eerste album in Deezer">🎧 Deezer</button>
+        <button class="pbtn pbtn-spotify" title="Vereist Spotify Premium">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+          Spotify
         </button>
         <button class="pbtn pbtn-json" onclick="exportJSON()">↓ JSON</button>
         <button class="pbtn pbtn-csv" onclick="exportCSV()">↓ CSV</button>
@@ -264,6 +279,10 @@
         <h3>Geen playlist</h3>
         <p>Selecteer of maak een playlist.</p>
       </div>
+    </div>
+    <div class="dz-strip" id="dzStrip" style="display:none">
+      <div class="dz-label">Nu openen in Deezer</div>
+      <div class="dz-row" id="dzRow"></div>
     </div>
     <div class="sp-strip" id="spStrip" style="display:none">
       <div class="sp-label">Spotify</div>
@@ -545,7 +564,9 @@ function renderPanel() {
   const strip = document.getElementById('spStrip');
 
   if (!activePlaylistId) {
-    hdr.style.display='none'; strip.style.display='none';
+    hdr.style.display='none';
+    document.getElementById('dzStrip').style.display='none';
+    document.getElementById('spStrip').style.display='none';
     list.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><h3>Geen playlist</h3><p>Selecteer of maak een playlist.</p></div>`;
     return;
   }
@@ -558,7 +579,9 @@ function renderPanel() {
 
   if (!pl.ids.length) {
     list.innerHTML=`<div class="empty"><div class="empty-icon">➕</div><h3>Leeg</h3><p>Sleep albums vanuit de lijst hiernaartoe, of selecteer albums en klik op <strong>+ Voeg toe</strong>.</p></div>`;
-    strip.style.display='none'; return;
+    document.getElementById('dzStrip').style.display='none';
+    document.getElementById('spStrip').style.display='none';
+    return;
   }
 
   list.innerHTML = pl.ids.map((aid,i) => {
@@ -577,11 +600,12 @@ function renderPanel() {
         <div class="pl-title">${esc(a.title)}</div>
         <div class="pl-artist">${esc(a.artist)}${a.year?' · '+a.year:''}</div>
       </div>
-      <button class="pl-sp" onclick="openAlbumSpotify('${a.id}')" title="Spotify">▶</button>
+      <button class="pl-sp" onclick="openAlbumSpotify('${a.id}')" title="Spotify zoeken">▶</button>
+      <button class="pl-dz" onclick="openAlbumDeezer('${a.id}')" title="Deezer zoeken">🎧</button>
       <button class="pl-rm" onclick="removeFromPlaylist('${aid}')" title="Verwijder">✕</button>
     </div>`;
   }).join('');
-  strip.style.display='block';
+  document.getElementById('dzStrip').style.display='block';
 }
 
 function removeFromPlaylist(aid) {
@@ -590,6 +614,41 @@ function removeFromPlaylist(aid) {
   pl.ids = pl.ids.filter(id=>id!==aid);
   renderPlaylists(); renderPanel(); render(); updateStats();
   saveToStorage();
+}
+
+// ── DEEZER ────────────────────────────────────────────────────────
+function openAlbumDeezer(aid) {
+  const a = albums.find(x=>x.id===aid);
+  if (!a) return;
+  const q = encodeURIComponent(a.artist + ' ' + a.title);
+  const url = 'https://www.deezer.com/search/' + q;
+  showDzStrip(a, url);
+  window.open(url, '_blank');
+}
+
+function openPlaylistDeezer() {
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl || !pl.ids.length) { toast('Playlist is leeg.', 'err'); return; }
+  const a = albums.find(x=>x.id===pl.ids[0]);
+  if (!a) return;
+  const q = encodeURIComponent(a.artist + ' ' + a.title);
+  const url = 'https://www.deezer.com/search/' + q;
+  showDzStrip(a, url);
+  window.open(url, '_blank');
+  toast('Deezer geopend: "' + a.title + '" \u2713', 'ok');
+}
+
+function showDzStrip(a, url) {
+  const strip = document.getElementById('dzStrip');
+  const row   = document.getElementById('dzRow');
+  strip.style.display = 'block';
+  row.innerHTML =
+    '<div class="dz-icon">\uD83C\uDFA7</div>' +
+    '<div class="dz-info">' +
+      '<div class="dz-title">' + esc(a.title) + '</div>' +
+      '<div class="dz-artist">' + esc(a.artist) + '</div>' +
+    '</div>' +
+    '<button class="dz-open" onclick="window.open(\'' + url.replace(/'/g, "\\'") + '\',\'_blank\')">Open</button>';
 }
 
 // ── SPOTIFY OAUTH (PKCE) ──────────────────────────────────────────
