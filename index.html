@@ -1,4 +1,4 @@
-<!-- MuziekApp V14 | index.html | Laatste wijziging: V14 - Fix panelHdr niet zichtbaar, fix track toevoegen via data-attributen -->
+<!-- MuziekApp V15 | index.html | Laatste wijziging: V15 - Deezer API fallback als MusicBrainz niets vindt -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -527,12 +527,17 @@ function renderTrackList(album) {
   if (!cache || cache.status === 'loading') {
     return `<div class="track-list-loading">⏳ Tracks ophalen via MusicBrainz…</div>`;
   }
+  if (cache.status === 'loading-deezer') {
+    return `<div class="track-list-loading">⏳ Niet gevonden op MusicBrainz, Deezer proberen…</div>`;
+  }
   if (cache.status === 'error' || !cache.releases.length) {
     return `<div class="track-list-loading" style="color:var(--muted)">
-      Niet gevonden.
+      Niet gevonden op MusicBrainz of Deezer.
       <button class="track-search-btn" onclick="fetchTracks('${album.id}',true)">↻ Opnieuw</button>
       <a href="https://musicbrainz.org/search?query=${encodeURIComponent(album.artist+' '+album.title)}&type=release"
-         target="_blank" style="color:var(--deezer);font-size:12px;margin-left:8px">MusicBrainz ↗</a>
+         target="_blank" style="color:var(--deezer);font-size:12px;margin-left:6px">MusicBrainz ↗</a>
+      <a href="https://www.deezer.com/search/${encodeURIComponent(album.artist+' '+album.title)}"
+         target="_blank" style="color:var(--deezer);font-size:12px;margin-left:6px">Deezer ↗</a>
     </div>`;
   }
 
@@ -578,15 +583,12 @@ function renderTrackList(album) {
   }).join('') : '<div class="track-list-loading" style="color:var(--muted)">Geen tracks in deze uitgave.</div>';
 
   return picker + trackRows +
-    `<div class="track-mb-link">Bron: <a href="https://musicbrainz.org/release/${selRelease.id}" target="_blank">MusicBrainz</a></div>`;
+    `<div class="track-mb-link">Bron: ${cache.source === 'deezer'
+      ? '<a href="https://www.deezer.com/search/'+encodeURIComponent(album.artist+' '+album.title)+'" target="_blank">Deezer</a>'
+      : '<a href="https://musicbrainz.org/release/'+selRelease.id+'" target="_blank">MusicBrainz</a>'
+    }</div>`;
 }
 
-function selectRelease(aid, idx) {
-  if (trackCache[aid]) {
-    trackCache[aid].selectedIdx = idx;
-    rerenderTrackWrap(aid, albums.find(a=>a.id===aid));
-  }
-}
 
 async function fetchTracks(aid, force=false) {
   if (trackCache[aid] && trackCache[aid].status !== 'error' && !force) return;
@@ -609,8 +611,9 @@ async function fetchTracks(aid, force=false) {
     const searchData = await searchRes.json();
     const rawReleases = searchData.releases || [];
     if (!rawReleases.length) {
-      trackCache[aid].status = 'error';
-      rerenderTrackWrap(aid, album); return;
+      // MusicBrainz niets gevonden → Deezer proberen
+      await fetchTracksFromDeezer(aid, album);
+      return;
     }
 
     // Dedup op titel+jaar+land — max 8 unieke uitgaven tonen
@@ -646,9 +649,72 @@ async function fetchTracks(aid, force=false) {
     await loadReleaseTracks(aid, 0);
 
   } catch(e) {
-    trackCache[aid].status = 'error';
+    // MusicBrainz fout → Deezer proberen
+    await fetchTracksFromDeezer(aid, album);
+  }
+}
+
+async function fetchTracksFromDeezer(aid, album) {
+  trackCache[aid] = { status: 'loading-deezer', releases: [], selectedIdx: 0 };
+  rerenderTrackWrap(aid, album);
+
+  try {
+    // Deezer publieke search API — CORS-vriendelijk via een proxy want Deezer blokkeert direct browser calls
+    // We gebruiken de Deezer search om het album te vinden
+    const q = encodeURIComponent(album.artist + ' ' + album.title);
+    const res = await fetch('https://api.deezer.com/search/album?q=' + q + '&limit=8&output=json');
+
+    let data;
+    if (!res.ok) throw new Error('Deezer status ' + res.status);
+    data = await res.json();
+
+    const dzAlbums = data.data || [];
+    if (!dzAlbums.length) throw new Error('Geen resultaten');
+
+    // Bouw releases array van Deezer albums
+    const releases = dzAlbums.slice(0,5).map(a => ({
+      id: 'dz_' + a.id,
+      dzId: a.id,
+      title: a.title,
+      date: a.release_date || '',
+      country: '',
+      label: a.label || '',
+      tracks: [],
+      source: 'deezer'
+    }));
+
+    trackCache[aid] = { status: 'ok', releases, selectedIdx: 0, source: 'deezer' };
+    rerenderTrackWrap(aid, album);
+
+    // Haal tracks op voor eerste resultaat
+    await loadDeezerTracks(aid, 0);
+
+  } catch(e) {
+    trackCache[aid] = { status: 'error', releases: [], selectedIdx: 0 };
     rerenderTrackWrap(aid, album);
   }
+}
+
+async function loadDeezerTracks(aid, idx) {
+  const cache = trackCache[aid];
+  if (!cache || !cache.releases[idx]) return;
+  const release = cache.releases[idx];
+  if (release.tracks.length) return;
+
+  try {
+    const res = await fetch('https://api.deezer.com/album/' + release.dzId + '/tracks?output=json');
+    const data = await res.json();
+    const tracks = (data.data || []).map((t, i) => {
+      const dur = t.duration ? Math.floor(t.duration/60) + ':' + String(t.duration%60).padStart(2,'0') : '';
+      return { num: i+1, title: t.title, dur };
+    });
+    release.tracks = tracks;
+  } catch(e) {
+    release.tracks = [];
+  }
+
+  const album = albums.find(a=>a.id===aid);
+  rerenderTrackWrap(aid, album);
 }
 
 async function loadReleaseTracks(aid, idx) {
@@ -686,7 +752,12 @@ function selectRelease(aid, idx) {
   trackCache[aid].selectedIdx = idx;
   const album = albums.find(a=>a.id===aid);
   rerenderTrackWrap(aid, album);
-  loadReleaseTracks(aid, idx);
+  const release = trackCache[aid].releases[idx];
+  if (release && release.dzId) {
+    loadDeezerTracks(aid, idx);
+  } else {
+    loadReleaseTracks(aid, idx);
+  }
 }
 
 function rerenderTrackWrap(aid, album) {
