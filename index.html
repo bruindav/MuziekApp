@@ -1,4 +1,4 @@
-<!-- MuziekApp V24 | index.html | Laatste wijziging: V24 - Beheer tab scroll fix, boxen schalen nu volledig mee -->
+<!-- MuziekApp V25 | index.html | Laatste wijziging: V25 - Fix opstartscherm (bibliotheek ipv beheer), form-grid CSS desktop, loginScreen correct initieel -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -198,12 +198,21 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
   .sidebar-overlay { display:none !important; }
   .fab { display:none; }
 }
+/* ── FORMS (desktop) ── */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.form-group { display:flex; flex-direction:column; gap:4px; }
+.form-group.full { grid-column:1/-1; }
+.form-label { font-size:11px; color:var(--muted); font-weight:500; }
+.form-input { padding:8px 11px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; outline:none; transition:border-color .15s; }
+.form-input:focus { border-color:var(--accent); }
+.btn-primary { padding:9px 18px; background:var(--accent); border:none; border-radius:8px; color:white; font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; cursor:pointer; transition:opacity .15s; }
+.btn-primary:hover { opacity:.85; }
+.btn-secondary { padding:9px 18px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; }
 </style>
-</head>
 <body>
 
 <!-- ── LOGIN SCHERM ── -->
-<div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:500;overflow-y:auto;display:flex;align-items:center;justify-content:center">
+<div id="loginScreen" style="display:flex;position:fixed;inset:0;background:var(--bg);z-index:500;overflow-y:auto;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:360px;max-width:95vw">
     <div style="text-align:center;margin-bottom:24px">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:3px;background:linear-gradient(135deg,var(--accent),var(--deezer));-webkit-background-clip:text;-webkit-text-fill-color:transparent">♪ Mijn Muziek</div>
@@ -290,7 +299,7 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 <div class="main" id="mainArea">
 
   <!-- ── BIBLIOTHEEK / PLAYLISTS VIEW ── -->
-  <div id="libView" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+  <div id="libView" style="display:none;flex-direction:column;flex:1;overflow:hidden">
     <div class="toolbar">
       <button id="hamburgerBtn" onclick="openSidebar()" style="display:none;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;padding:6px 10px;cursor:pointer" title="Playlists">☰</button>
       <div class="search-wrap">
@@ -314,7 +323,7 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
   <div class="beheer-view" id="beheerView">
 
     <!-- Barcode scanner + Album toevoegen -->
-    <div class="beheer-card open" id="card-toevoegen">
+    <div class="beheer-card" id="card-toevoegen">
       <div class="beheer-card-header" onclick="toggleCard('card-toevoegen')">
         <h3>➕ Album Toevoegen</h3>
         <span class="beheer-card-chevron">▶</span>
@@ -704,8 +713,9 @@ function showAuthError(msg) {
 
 function showApp() {
   document.getElementById('loginScreen').style.display = 'none';
-  document.body.style.overflow = 'hidden';
   document.getElementById('userName').textContent = currentUser.displayName || currentUser.email;
+  // Zorg dat we op de bibliotheek tab beginnen
+  switchTab('bibliotheek');
 }
 
 function showLogin() {
@@ -798,9 +808,24 @@ window.switchTab = function(tab) {
   });
   const layout = document.getElementById('appLayout');
   layout.className = 'tab-' + tab;
-  document.getElementById('libView').style.display    = (tab==='bibliotheek'||tab==='playlists') ? 'flex' : 'none';
-  document.getElementById('beheerView').classList.toggle('active', tab==='beheer');
-  if (tab==='bibliotheek') document.getElementById('viewTitle').textContent='Alle Albums';
+
+  const libView    = document.getElementById('libView');
+  const beheerView = document.getElementById('beheerView');
+
+  if (tab === 'bibliotheek' || tab === 'playlists') {
+    libView.style.display    = 'flex';
+    beheerView.classList.remove('active');
+  } else if (tab === 'beheer') {
+    libView.style.display    = 'none';
+    beheerView.classList.add('active');
+    // Open de eerste card automatisch als die nog dicht is
+    const firstCard = document.getElementById('card-toevoegen');
+    if (firstCard && !firstCard.classList.contains('open')) {
+      firstCard.classList.add('open');
+    }
+  }
+
+  if (tab === 'bibliotheek') document.getElementById('viewTitle').textContent = 'Alle Albums';
   render();
 };
 
@@ -1890,9 +1915,9 @@ function applyMobileLayout() {
 }
 window.addEventListener('resize', applyMobileLayout);
 
-switchTab('bibliotheek');
+// App start — loginScreen is zichtbaar (display:flex in HTML)
+// switchTab wordt aangeroepen door showApp() na succesvolle login
 applyMobileLayout();
-// startListeners wordt aangeroepen door onAuthStateChanged
 </script>
 </body>
 </html>
