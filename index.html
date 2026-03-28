@@ -1,4 +1,4 @@
-<!-- MuziekApp V27 | index.html | Laatste wijziging: V27 - CSS herstel: overlay/modal/toast/form-grid desktop definities terug -->
+<!-- MuziekApp V28 | index.html | Laatste wijziging: V28 - Fix invite emailToKey (punt+@ encoding), sendInvite consistent -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -710,36 +710,76 @@ function userDoc(name, id) {
 }
 
 // Bepaal welk household deze gebruiker mag zien
+// Email veilig maken als Firestore document ID (punten niet toegestaan)
+function emailToKey(email) {
+  return email.toLowerCase().replace(/\./g, '_').replace(/@/g, '_at_');
+}
+
 async function resolveHousehold(uid) {
-  // Eigenaar — gebruikt altijd eigen household
+  // Eigenaar — gebruik household, migreer data van /users als nodig
   if (uid === OWNER_UID) {
     householdId = OWNER_UID;
+    await migrateUserDataToHousehold(uid);
     return true;
   }
-  // Kijk of deze uid uitgenodigd is voor het household van de eigenaar
-  const memberDoc = await getDoc(doc(db, 'households', OWNER_UID, 'members', uid));
-  if (memberDoc.exists() && memberDoc.data().status === 'accepted') {
-    householdId = OWNER_UID;
-    return true;
+
+  // Check member toegang
+  try {
+    const memberDoc = await getDoc(doc(db, 'households', OWNER_UID, 'members', uid));
+    if (memberDoc.exists() && memberDoc.data().status === 'accepted') {
+      householdId = OWNER_UID;
+      return true;
+    }
+  } catch(e) {}
+
+  // Check uitnodiging op email (gesla­gen als emailToKey)
+  if (currentUser.email) {
+    try {
+      const key = emailToKey(currentUser.email);
+      const invite = await getDoc(doc(db, 'households', OWNER_UID, 'invites', key));
+      if (invite.exists()) {
+        await setDoc(doc(db, 'households', OWNER_UID, 'members', uid), {
+          email:    currentUser.email,
+          name:     currentUser.displayName || currentUser.email,
+          joinedAt: serverTimestamp(),
+          status:   'accepted'
+        });
+        try { await deleteDoc(invite.ref); } catch(e) {}
+        householdId = OWNER_UID;
+        return true;
+      }
+    } catch(e) { console.log('invite check error:', e); }
   }
-  // Kijk of er een uitnodiging is op basis van email
-  const invite = await getDoc(doc(db, 'households', OWNER_UID, 'invites', currentUser.email));
-  if (invite.exists()) {
-    // Accepteer automatisch — sla uid op als member
-    await setDoc(doc(db, 'households', OWNER_UID, 'members', uid), {
-      email: currentUser.email,
-      name:  currentUser.displayName || currentUser.email,
-      joinedAt: serverTimestamp(),
-      status: 'accepted'
-    });
-    // Verwijder invite
-    await deleteDoc(doc(db, 'households', OWNER_UID, 'invites', currentUser.email));
-    householdId = OWNER_UID;
-    return true;
-  }
-  // Geen toegang — eigen lege household
+
+  // Geen toegang — eigen household
   householdId = uid;
   return false;
+}
+
+// Migreer data van oude /users/{uid} structuur naar /households/{uid}
+async function migrateUserDataToHousehold(uid) {
+  const collectionsToMigrate = ['albums','playlists','trackItems','deviceTypes','storageLabels'];
+  for (const col of collectionsToMigrate) {
+    try {
+      // Check of er al data in household staat
+      const hhSnap = await getDocs(collection(db,'households',uid,col));
+      if (!hhSnap.empty) continue; // al gemigreerd
+
+      // Haal data op uit /users/{uid}/{col}
+      const userSnap = await getDocs(collection(db,'users',uid,col));
+      if (userSnap.empty) continue;
+
+      // Kopieer naar /households
+      const batch = writeBatch(db);
+      userSnap.docs.forEach(d => {
+        batch.set(doc(db,'households',uid,col,d.id), d.data());
+      });
+      await batch.commit();
+      console.log('Gemigreerd:', col, userSnap.size, 'documenten');
+    } catch(e) {
+      console.warn('Migratie fout voor', col, e.message);
+    }
+  }
 }
 
 // ── STATE ─────────────────────────────────────────────────────────
@@ -1264,8 +1304,9 @@ window.sendInvite = async function() {
   const email = document.getElementById('inviteEmail').value.trim().toLowerCase();
   if (!email) return;
   if (!email.includes('@')) { toast('Ongeldig e-mailadres.','err'); return; }
-  await setDoc(doc(db,'households',OWNER_UID,'invites',email), {
-    invitedAt: serverTimestamp(), invitedBy: currentUser.email
+  const key = emailToKey(email);
+  await setDoc(doc(db,'households',OWNER_UID,'invites',key), {
+    email, invitedAt: serverTimestamp(), invitedBy: currentUser.email
   });
   document.getElementById('inviteEmail').value = '';
   toast(email + ' uitgenodigd ✓','ok');
