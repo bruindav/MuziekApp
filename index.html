@@ -1,4 +1,4 @@
-<!-- MuziekApp V11 | index.html | Laatste wijziging: V11 - Fix illegal return, release-kiezer bij meerdere uitgaven, lazy track loading -->
+<!-- MuziekApp V12 | index.html | Laatste wijziging: V12 - Fix geneste backticks in template literals (toggleSel/Unexpected end of input) -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -413,7 +413,7 @@ function parseCSV(text) {
   }
 
   updateFilters(); updateStats(); render();
-  toast(`${added} albums geïmporteerd${skipped?`, ${skipped} overgeslagen`:''} ✓`, 'ok');
+  toast(added + ' albums geïmporteerd' + (skipped ? ', '+skipped+' overgeslagen' : '') + ' \u2713', 'ok');
   saveToStorage();
 }
 
@@ -495,14 +495,14 @@ function render() {
         <td class="expand-arrow" onclick="toggleExpand('${a.id}',event)" style="cursor:pointer;text-align:center">▶</td>
         <td class="num" onclick="toggleSel('${a.id}')" style="cursor:pointer">${i+1}</td>
         <td onclick="toggleSel('${a.id}')" style="cursor:pointer"><strong style="font-weight:500;font-size:14px">${esc(a.artist)}</strong></td>
-        <td onclick="toggleSel('${a.id}')" style="cursor:pointer"><span style="font-size:13px">${esc(a.title)}</span>${a.label?`<span style="font-size:11px;color:var(--muted);display:block">${esc(a.label)}</span>`:''}</td>
+        <td onclick="toggleSel('${a.id}')" style="cursor:pointer"><span style="font-size:13px">${esc(a.title)}</span>${a.label?'<span style="font-size:11px;color:var(--muted);display:block">'+esc(a.label)+'</span>':''}</td>
         <td onclick="toggleSel('${a.id}')" style="cursor:pointer;color:var(--muted)">${a.year||''}</td>
         <td onclick="toggleSel('${a.id}')" style="cursor:pointer;color:var(--muted)">${a.tracks||''}</td>
         <td onclick="toggleSel('${a.id}')" style="cursor:pointer;color:var(--muted);font-size:12px">${a.length||''}</td>
-        <td onclick="toggleSel('${a.id}')" style="cursor:pointer">${a.genreFirst?`<span class="genre-tag" title="${esc(a.genre)}">${esc(a.genreFirst)}</span>`:''}</td>
+        <td onclick="toggleSel('${a.id}')" style="cursor:pointer">${a.genreFirst?'<span class="genre-tag" title="'+esc(a.genre)+'">'+esc(a.genreFirst)+'</span>':''}</td>
         <td>${plIds.has(a.id)?'<span class="in-pl" title="In playlist"></span>':''}</td>
       </tr>
-      ${expandedAlbumId===a.id ? `<tr class="track-rows"><td colspan="9"><div class="track-list-wrap" id="trackWrap_${a.id}">${renderTrackList(a)}</div></td></tr>` : ''}
+      ${expandedAlbumId===a.id ? '<tr class="track-rows"><td colspan="9"><div class="track-list-wrap" id="trackWrap_'+a.id+'">'+renderTrackList(a)+'</div></td></tr>' : ''}
     `).join('')}
     </tbody></table>`;
 
