@@ -1,4 +1,4 @@
-<!-- MuziekApp V3 | index.html | Laatste wijziging: V3 - Spotify JSON fix, robuustere API calls, betere foutmelding -->
+<!-- MuziekApp V4 | index.html | Laatste wijziging: V4 - Spotify scopes fix (user-read-private), robuuste token parsing -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -595,7 +595,7 @@ function removeFromPlaylist(aid) {
 // ── SPOTIFY OAUTH (PKCE) ──────────────────────────────────────────
 const SP_CLIENT_ID   = '8de3a59560464b38bd66e786e1e7a5dc';
 const SP_REDIRECT    = 'https://bruindav.github.io/MuziekApp';
-const SP_SCOPES      = 'playlist-modify-public playlist-modify-private ugc-image-upload';
+const SP_SCOPES = 'user-read-private user-read-email playlist-modify-public playlist-modify-private';
 
 let spToken = null;
 let spUserId = null;
@@ -663,18 +663,27 @@ async function handleSpotifyCallback() {
       code_verifier: verifier,
     }),
   });
-  const data = await res.json();
+
+  const rawText = await res.text();
+  let data;
+  try {
+    data = JSON.parse(rawText);
+  } catch(e) {
+    toast('Spotify antwoord onleesbaar: ' + rawText.slice(0, 80), 'err');
+    document.getElementById('spStrip').style.display = 'none';
+    return;
+  }
 
   sessionStorage.removeItem('sp_verifier');
 
   if (data.access_token) {
     spToken = data.access_token;
     await fetchSpotifyUser();
-    // Zorg dat het paneel goed gerenderd is na redirect
     renderPanel();
     document.getElementById('spStrip').style.display = 'none';
   } else {
-    toast('Spotify login mislukt: ' + (data.error_description || data.error || 'onbekend'), 'err');
+    const errMsg = data.error_description || data.error || JSON.stringify(data);
+    toast('Spotify login mislukt: ' + errMsg, 'err');
     document.getElementById('spStrip').style.display = 'none';
   }
 }
