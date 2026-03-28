@@ -1,4 +1,4 @@
-<!-- MuziekApp V10 | index.html | Laatste wijziging: V10 - Uitklapbare tracklijst via MusicBrainz, losse tracks toevoegen aan playlist -->
+<!-- MuziekApp V11 | index.html | Laatste wijziging: V11 - Fix illegal return, release-kiezer bij meerdere uitgaven, lazy track loading -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -177,6 +177,14 @@
   .track-row.in-pl .track-add { opacity: .4; cursor: default; }
   .track-mb-link { font-size: 11px; color: var(--muted); margin-top: 8px; }
   .track-mb-link a { color: var(--deezer); text-decoration: none; }
+
+  /* Uitgave-kiezer */
+  .release-picker { margin-bottom: 10px; }
+  .release-picker-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing: .5px; }
+  .release-options { display: flex; flex-wrap: wrap; gap: 5px; }
+  .release-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 11px; cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .release-btn:hover { border-color: var(--deezer); color: var(--text); }
+  .release-btn.active { border-color: var(--deezer); background: rgba(162,89,255,.15); color: var(--text); }
 
   /* Drag & drop */
   tbody tr[draggable] { cursor: grab; }
@@ -503,112 +511,182 @@ function render() {
 
 // ── ALBUM UITKLAPPEN & TRACKS ─────────────────────────────────────
 let expandedAlbumId = null;
-const trackCache = {}; // albumId → [{num, title, duration}] of 'loading' of 'error'
+// trackCache[albumId] = { status: 'loading'|'error'|'ok', releases: [{id,title,date,country,tracks:[]}], selectedIdx: 0 }
+const trackCache = {};
 
 function toggleExpand(aid, e) {
   e.stopPropagation();
-  if (expandedAlbumId === aid) {
-    expandedAlbumId = null;
-  } else {
-    expandedAlbumId = aid;
-    // Start ophalen als nog niet gecached
-    if (!trackCache[aid]) fetchTracks(aid);
-  }
+  expandedAlbumId = expandedAlbumId === aid ? null : aid;
+  if (expandedAlbumId && !trackCache[aid]) fetchTracks(aid);
   render();
 }
 
 function renderTrackList(album) {
-  const cached = trackCache[album.id];
-  if (!cached || cached === 'loading') {
+  const cache = trackCache[album.id];
+  if (!cache || cache.status === 'loading') {
     return `<div class="track-list-loading">⏳ Tracks ophalen via MusicBrainz…</div>`;
   }
-  if (cached === 'error') {
+  if (cache.status === 'error' || !cache.releases.length) {
     return `<div class="track-list-loading" style="color:var(--muted)">
       Niet gevonden.
-      <button class="track-search-btn" onclick="fetchTracks('${album.id}',true)">↻ Opnieuw proberen</button>
-      <a href="https://musicbrainz.org/search?query=${encodeURIComponent(album.artist+' '+album.title)}&type=release" target="_blank" style="color:var(--deezer);font-size:12px;margin-left:8px">MusicBrainz zoeken ↗</a>
+      <button class="track-search-btn" onclick="fetchTracks('${album.id}',true)">↻ Opnieuw</button>
+      <a href="https://musicbrainz.org/search?query=${encodeURIComponent(album.artist+' '+album.title)}&type=release"
+         target="_blank" style="color:var(--deezer);font-size:12px;margin-left:8px">MusicBrainz ↗</a>
     </div>`;
   }
-  if (!cached.length) {
-    return `<div class="track-list-loading" style="color:var(--muted)">Geen tracks gevonden voor dit album.</div>`;
-  }
+
+  const releases  = cache.releases;
+  const selIdx    = cache.selectedIdx || 0;
+  const selRelease = releases[selIdx];
+  const tracks    = selRelease.tracks || [];
 
   const pl = playlists.find(p=>p.id===activePlaylistId);
   const plTrackIds = new Set(pl ? pl.ids : []);
 
-  return cached.map(t => {
-    // Track id = albumId + tracknummer
+  // Uitgave-kiezer (alleen tonen als >1 release)
+  const picker = releases.length > 1 ? `
+    <div class="release-picker">
+      <div class="release-picker-label">📀 ${releases.length} uitgaven gevonden — kies een versie:</div>
+      <div class="release-options">
+        ${releases.map((r,i) => `
+          <button class="release-btn ${i===selIdx?'active':''}"
+            onclick="selectRelease('${album.id}',${i})">
+            ${esc(r.date ? r.date.slice(0,4) : '?')}${r.country?' · '+esc(r.country):''}${r.label?' · '+esc(r.label):''}
+            <span style="opacity:.6">(${r.tracks.length} tracks)</span>
+          </button>`).join('')}
+      </div>
+    </div>` : '';
+
+  const trackRows = tracks.length ? tracks.map(t => {
     const tid = album.id + '_t' + t.num;
     const inPl = plTrackIds.has(tid);
-    return `<div class="track-row ${inPl?'in-pl':''}" data-tid="${tid}">
+    return `<div class="track-row ${inPl?'in-pl':''}">
       <span class="track-num">${t.num}</span>
       <span class="track-title">${esc(t.title)}</span>
       <span class="track-dur">${t.dur||''}</span>
-      <button class="track-add" onclick="addTrackToPlaylist('${album.id}','${tid}',${JSON.stringify(t.title)},${JSON.stringify(album.artist)})"
+      <button class="track-add"
+        onclick="addTrackToPlaylist('${album.id}','${tid}',${JSON.stringify(t.title)},${JSON.stringify(album.artist)})"
         ${inPl?'disabled title="Al in playlist"':'title="Toevoegen aan playlist"'}>
-        ${inPl?'✓':'+ Toevoegen'}
+        ${inPl?'✓':'+ Voeg toe'}
       </button>
     </div>`;
-  }).join('') +
-  `<div class="track-mb-link">Bron: <a href="https://musicbrainz.org/search?query=${encodeURIComponent(album.artist+' '+album.title)}&type=release" target="_blank">MusicBrainz</a></div>`;
+  }).join('') : '<div class="track-list-loading" style="color:var(--muted)">Geen tracks in deze uitgave.</div>';
+
+  return picker + trackRows +
+    `<div class="track-mb-link">Bron: <a href="https://musicbrainz.org/release/${selRelease.id}" target="_blank">MusicBrainz</a></div>`;
+}
+
+function selectRelease(aid, idx) {
+  if (trackCache[aid]) {
+    trackCache[aid].selectedIdx = idx;
+    rerenderTrackWrap(aid, albums.find(a=>a.id===aid));
+  }
 }
 
 async function fetchTracks(aid, force=false) {
-  if (trackCache[aid] && !force) return;
-  trackCache[aid] = 'loading';
-  // Re-render de open rij met loading indicator
+  if (trackCache[aid] && trackCache[aid].status !== 'error' && !force) return;
+  trackCache[aid] = { status: 'loading', releases: [], selectedIdx: 0 };
   const wrap = document.getElementById('trackWrap_' + aid);
   if (wrap) wrap.innerHTML = '<div class="track-list-loading">⏳ Tracks ophalen via MusicBrainz…</div>';
 
   const album = albums.find(a=>a.id===aid);
-  if (!album) { trackCache[aid] = 'error'; return; }
+  if (!album) { trackCache[aid].status = 'error'; return; }
 
   try {
-    // Stap 1: zoek release op MusicBrainz
+    // Stap 1: zoek releases
     const q = encodeURIComponent(
       'artist:"' + album.artist.replace(/"/g,'') + '" AND release:"' + album.title.replace(/"/g,'') + '"'
     );
     const searchRes = await fetch(
-      'https://musicbrainz.org/ws/2/release?query=' + q + '&limit=5&fmt=json',
+      'https://musicbrainz.org/ws/2/release?query=' + q + '&limit=10&fmt=json',
       { headers: { 'User-Agent': 'MuziekApp/1.0 (bruindav.github.io)' } }
     );
     const searchData = await searchRes.json();
-    const releases = searchData.releases || [];
-    if (!releases.length) { trackCache[aid] = 'error'; rerenderTrackWrap(aid, album); return; }
-
-    // Pak de beste match (hoogste score, met juist jaar als beschikbaar)
-    let best = releases[0];
-    if (album.year) {
-      const withYear = releases.find(r => (r.date||'').startsWith(album.year));
-      if (withYear) best = withYear;
+    const rawReleases = searchData.releases || [];
+    if (!rawReleases.length) {
+      trackCache[aid].status = 'error';
+      rerenderTrackWrap(aid, album); return;
     }
 
-    // Stap 2: haal tracklist op voor die release
+    // Dedup op titel+jaar+land — max 8 unieke uitgaven tonen
+    const seen = new Set();
+    const uniqueReleases = [];
+    for (const r of rawReleases) {
+      const key = (r.title||'').toLowerCase() + '|' + (r.date||'').slice(0,4) + '|' + (r['release-group']?.id||'');
+      if (!seen.has(key)) { seen.add(key); uniqueReleases.push(r); }
+      if (uniqueReleases.length >= 8) break;
+    }
+
+    // Sorteer: jaar dichtst bij album.year bovenaan
+    if (album.year) {
+      uniqueReleases.sort((a,b) => {
+        const da = Math.abs(parseInt(a.date||'0') - parseInt(album.year));
+        const db = Math.abs(parseInt(b.date||'0') - parseInt(album.year));
+        return da - db;
+      });
+    }
+
+    // Stap 2: haal voor de eerste release meteen de tracks op
+    const releases = uniqueReleases.map(r => ({
+      id: r.id, title: r.title,
+      date: r.date||'', country: r.country||'',
+      label: r['label-info']?.[0]?.label?.name || '',
+      tracks: []
+    }));
+
+    trackCache[aid] = { status: 'ok', releases, selectedIdx: 0 };
+    rerenderTrackWrap(aid, album);
+
+    // Haal tracks op voor de eerste (geselecteerde) release
+    await loadReleaseTracks(aid, 0);
+
+  } catch(e) {
+    trackCache[aid].status = 'error';
+    rerenderTrackWrap(aid, album);
+  }
+}
+
+async function loadReleaseTracks(aid, idx) {
+  const cache = trackCache[aid];
+  if (!cache || !cache.releases[idx]) return;
+  const release = cache.releases[idx];
+  if (release.tracks.length) return; // al geladen
+
+  try {
     const detailRes = await fetch(
-      'https://musicbrainz.org/ws/2/release/' + best.id + '?inc=recordings&fmt=json',
+      'https://musicbrainz.org/ws/2/release/' + release.id + '?inc=recordings&fmt=json',
       { headers: { 'User-Agent': 'MuziekApp/1.0 (bruindav.github.io)' } }
     );
     const detail = await detailRes.json();
-    const media = detail.media || [];
     const tracks = [];
-    let globalNum = 1;
-    for (const disc of media) {
+    let num = 1;
+    for (const disc of (detail.media || [])) {
       for (const t of (disc.tracks || [])) {
         const ms = t.recording?.length || t.length || 0;
         const dur = ms ? Math.floor(ms/60000) + ':' + String(Math.floor((ms%60000)/1000)).padStart(2,'0') : '';
-        tracks.push({ num: globalNum++, title: t.title, dur });
+        tracks.push({ num: num++, title: t.title, dur });
       }
     }
-    trackCache[aid] = tracks.length ? tracks : 'error';
+    release.tracks = tracks;
   } catch(e) {
-    trackCache[aid] = 'error';
+    release.tracks = [];
   }
+
+  const album = albums.find(a=>a.id===aid);
   rerenderTrackWrap(aid, album);
+}
+
+function selectRelease(aid, idx) {
+  if (!trackCache[aid]) return;
+  trackCache[aid].selectedIdx = idx;
+  const album = albums.find(a=>a.id===aid);
+  rerenderTrackWrap(aid, album);
+  loadReleaseTracks(aid, idx);
 }
 
 function rerenderTrackWrap(aid, album) {
   const wrap = document.getElementById('trackWrap_' + aid);
-  if (wrap) wrap.innerHTML = renderTrackList(album);
+  if (wrap && album) wrap.innerHTML = renderTrackList(album);
 }
 
 function addTrackToPlaylist(albumId, tid, trackTitle, artist) {
@@ -616,16 +694,14 @@ function addTrackToPlaylist(albumId, tid, trackTitle, artist) {
   const pl = playlists.find(p=>p.id===activePlaylistId);
   if (!pl) return;
   if (pl.ids.includes(tid)) { toast('Staat al in de playlist.', ''); return; }
-  // Sla track op als mini-object naast albums
   if (!trackItems[tid]) {
     const album = albums.find(a=>a.id===albumId);
     trackItems[tid] = { id: tid, albumId, title: trackTitle, artist, album: album ? album.title : '', year: album ? album.year : '', isTrack: true };
   }
   pl.ids.push(tid);
   renderPlaylists(); renderPanel(); saveToStorage();
-  // Herrender alleen de trackwrap zodat ✓ verschijnt
   rerenderTrackWrap(albumId, albums.find(a=>a.id===albumId));
-  toast('"' + trackTitle + '" toegevoegd ✓', 'ok');
+  toast('"' + trackTitle + '" toegevoegd \u2713', 'ok');
 }
 
 
@@ -798,6 +874,7 @@ function openTrackDeezer(title, artist) {
   const url = 'https://www.deezer.com/search/' + q;
   window.open(url, '_blank');
 }
+function openPlaylistDeezer() {
   const pl = playlists.find(p=>p.id===activePlaylistId);
   if (!pl || !pl.ids.length) { toast('Playlist is leeg.', 'err'); return; }
   const a = albums.find(x=>x.id===pl.ids[0]);
