@@ -1,4 +1,4 @@
-<!-- MuziekApp V9 | index.html | Laatste wijziging: V9 - Fix scrollen hele pagina, sidebar en panel fixed -->
+<!-- MuziekApp V10 | index.html | Laatste wijziging: V10 - Uitklapbare tracklijst via MusicBrainz, losse tracks toevoegen aan playlist -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -161,6 +161,23 @@
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
+  /* Uitklapbare tracklijst */
+  tbody tr.album-row td.expand-arrow { color: var(--muted); font-size: 11px; transition: transform .2s; text-align: center; width: 24px; display: inline-block; }
+  tbody tr.album-row.expanded td.expand-arrow { transform: rotate(90deg); color: var(--accent); }
+  .track-list-wrap { background: var(--surface); border-bottom: 2px solid rgba(162,89,255,.3); padding: 4px 0 12px 52px; }
+  .track-list-loading { padding: 10px 0; color: var(--muted); font-size: 13px; }
+  .track-row { display: flex; align-items: center; gap: 8px; padding: 4px 16px 4px 0; border-radius: 6px; transition: background .1s; cursor: default; }
+  .track-row:hover { background: var(--surface2); }
+  .track-num { font-size: 11px; color: var(--muted); width: 22px; text-align: right; flex-shrink: 0; }
+  .track-title { flex: 1; font-size: 13px; }
+  .track-dur { font-size: 11px; color: var(--muted); flex-shrink: 0; min-width: 36px; text-align: right; }
+  .track-add { opacity: 0; transition: opacity .15s; background: none; border: 1px solid var(--green); color: var(--green); cursor: pointer; font-size: 11px; padding: 2px 7px; border-radius: 4px; white-space: nowrap; font-family: 'DM Sans', sans-serif; }
+  .track-row:hover .track-add { opacity: 1; }
+  .track-row.in-pl .track-title { color: var(--green); }
+  .track-row.in-pl .track-add { opacity: .4; cursor: default; }
+  .track-mb-link { font-size: 11px; color: var(--muted); margin-top: 8px; }
+  .track-mb-link a { color: var(--deezer); text-decoration: none; }
+
   /* Drag & drop */
   tbody tr[draggable] { cursor: grab; }
   tbody tr[draggable]:active { cursor: grabbing; }
@@ -307,6 +324,7 @@
 <script>
 let albums = [], playlists = [], activePlaylistId = null, currentView = 'all';
 let selectedIds = new Set(), sortCol = 'artist', sortAsc = true;
+let trackItems = {}; // tid → {id, albumId, title, artist, album, year, isTrack}
 
 const COLORS = [
   {bg:'rgba(255,77,109,.12)',c:'#ff4d6d',i:'🎸'},
@@ -449,6 +467,7 @@ function render() {
 
   wrap.innerHTML = `<table>
     <thead><tr>
+      <th style="width:24px"></th>
       <th style="width:30px"></th>
       ${th('artist','Artiest')}
       ${th('title','Album')}
@@ -458,29 +477,158 @@ function render() {
       <th>Genre</th>
       <th style="width:16px"></th>
     </tr></thead>
-    <tbody>
-    ${filtered.map((a,i) => `<tr class="${selectedIds.has(a.id)?'selected':''}"
-        draggable="true"
-        data-id="${a.id}"
-        onclick="toggleSel('${a.id}')"
-        ondragstart="onTableDragStart(event,'${a.id}')"
-        ondragend="onTableDragEnd(event)">
-      <td class="num">${i+1}</td>
-      <td><strong style="font-weight:500;font-size:14px">${esc(a.artist)}</strong></td>
-      <td><span style="font-size:13px">${esc(a.title)}</span>${a.label?`<span style="font-size:11px;color:var(--muted);display:block">${esc(a.label)}</span>`:''}</td>
-      <td style="color:var(--muted)">${a.year||''}</td>
-      <td style="color:var(--muted)">${a.tracks||''}</td>
-      <td style="color:var(--muted);font-size:12px">${a.length||''}</td>
-      <td>${a.genreFirst?`<span class="genre-tag" title="${esc(a.genre)}">${esc(a.genreFirst)}</span>`:''}</td>
-      <td>${plIds.has(a.id)?'<span class="in-pl" title="In playlist"></span>':''}</td>
-    </tr>`).join('')}
+    <tbody id="albumTbody">
+    ${filtered.map((a,i) => `
+      <tr class="album-row ${selectedIds.has(a.id)?'selected':''} ${expandedAlbumId===a.id?'expanded':''}"
+          data-id="${a.id}"
+          draggable="true"
+          ondragstart="onTableDragStart(event,'${a.id}')"
+          ondragend="onTableDragEnd(event)">
+        <td class="expand-arrow" onclick="toggleExpand('${a.id}',event)" style="cursor:pointer;text-align:center">▶</td>
+        <td class="num" onclick="toggleSel('${a.id}')" style="cursor:pointer">${i+1}</td>
+        <td onclick="toggleSel('${a.id}')" style="cursor:pointer"><strong style="font-weight:500;font-size:14px">${esc(a.artist)}</strong></td>
+        <td onclick="toggleSel('${a.id}')" style="cursor:pointer"><span style="font-size:13px">${esc(a.title)}</span>${a.label?`<span style="font-size:11px;color:var(--muted);display:block">${esc(a.label)}</span>`:''}</td>
+        <td onclick="toggleSel('${a.id}')" style="cursor:pointer;color:var(--muted)">${a.year||''}</td>
+        <td onclick="toggleSel('${a.id}')" style="cursor:pointer;color:var(--muted)">${a.tracks||''}</td>
+        <td onclick="toggleSel('${a.id}')" style="cursor:pointer;color:var(--muted);font-size:12px">${a.length||''}</td>
+        <td onclick="toggleSel('${a.id}')" style="cursor:pointer">${a.genreFirst?`<span class="genre-tag" title="${esc(a.genre)}">${esc(a.genreFirst)}</span>`:''}</td>
+        <td>${plIds.has(a.id)?'<span class="in-pl" title="In playlist"></span>':''}</td>
+      </tr>
+      ${expandedAlbumId===a.id ? `<tr class="track-rows"><td colspan="9"><div class="track-list-wrap" id="trackWrap_${a.id}">${renderTrackList(a)}</div></td></tr>` : ''}
+    `).join('')}
     </tbody></table>`;
 
   updateSelUI();
 }
 
-function sortBy(col) { sortAsc = sortCol===col ? !sortAsc : true; sortCol = col; render(); }
-function toggleSel(id) { if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id); render(); }
+// ── ALBUM UITKLAPPEN & TRACKS ─────────────────────────────────────
+let expandedAlbumId = null;
+const trackCache = {}; // albumId → [{num, title, duration}] of 'loading' of 'error'
+
+function toggleExpand(aid, e) {
+  e.stopPropagation();
+  if (expandedAlbumId === aid) {
+    expandedAlbumId = null;
+  } else {
+    expandedAlbumId = aid;
+    // Start ophalen als nog niet gecached
+    if (!trackCache[aid]) fetchTracks(aid);
+  }
+  render();
+}
+
+function renderTrackList(album) {
+  const cached = trackCache[album.id];
+  if (!cached || cached === 'loading') {
+    return `<div class="track-list-loading">⏳ Tracks ophalen via MusicBrainz…</div>`;
+  }
+  if (cached === 'error') {
+    return `<div class="track-list-loading" style="color:var(--muted)">
+      Niet gevonden.
+      <button class="track-search-btn" onclick="fetchTracks('${album.id}',true)">↻ Opnieuw proberen</button>
+      <a href="https://musicbrainz.org/search?query=${encodeURIComponent(album.artist+' '+album.title)}&type=release" target="_blank" style="color:var(--deezer);font-size:12px;margin-left:8px">MusicBrainz zoeken ↗</a>
+    </div>`;
+  }
+  if (!cached.length) {
+    return `<div class="track-list-loading" style="color:var(--muted)">Geen tracks gevonden voor dit album.</div>`;
+  }
+
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  const plTrackIds = new Set(pl ? pl.ids : []);
+
+  return cached.map(t => {
+    // Track id = albumId + tracknummer
+    const tid = album.id + '_t' + t.num;
+    const inPl = plTrackIds.has(tid);
+    return `<div class="track-row ${inPl?'in-pl':''}" data-tid="${tid}">
+      <span class="track-num">${t.num}</span>
+      <span class="track-title">${esc(t.title)}</span>
+      <span class="track-dur">${t.dur||''}</span>
+      <button class="track-add" onclick="addTrackToPlaylist('${album.id}','${tid}',${JSON.stringify(t.title)},${JSON.stringify(album.artist)})"
+        ${inPl?'disabled title="Al in playlist"':'title="Toevoegen aan playlist"'}>
+        ${inPl?'✓':'+ Toevoegen'}
+      </button>
+    </div>`;
+  }).join('') +
+  `<div class="track-mb-link">Bron: <a href="https://musicbrainz.org/search?query=${encodeURIComponent(album.artist+' '+album.title)}&type=release" target="_blank">MusicBrainz</a></div>`;
+}
+
+async function fetchTracks(aid, force=false) {
+  if (trackCache[aid] && !force) return;
+  trackCache[aid] = 'loading';
+  // Re-render de open rij met loading indicator
+  const wrap = document.getElementById('trackWrap_' + aid);
+  if (wrap) wrap.innerHTML = '<div class="track-list-loading">⏳ Tracks ophalen via MusicBrainz…</div>';
+
+  const album = albums.find(a=>a.id===aid);
+  if (!album) { trackCache[aid] = 'error'; return; }
+
+  try {
+    // Stap 1: zoek release op MusicBrainz
+    const q = encodeURIComponent(
+      'artist:"' + album.artist.replace(/"/g,'') + '" AND release:"' + album.title.replace(/"/g,'') + '"'
+    );
+    const searchRes = await fetch(
+      'https://musicbrainz.org/ws/2/release?query=' + q + '&limit=5&fmt=json',
+      { headers: { 'User-Agent': 'MuziekApp/1.0 (bruindav.github.io)' } }
+    );
+    const searchData = await searchRes.json();
+    const releases = searchData.releases || [];
+    if (!releases.length) { trackCache[aid] = 'error'; rerenderTrackWrap(aid, album); return; }
+
+    // Pak de beste match (hoogste score, met juist jaar als beschikbaar)
+    let best = releases[0];
+    if (album.year) {
+      const withYear = releases.find(r => (r.date||'').startsWith(album.year));
+      if (withYear) best = withYear;
+    }
+
+    // Stap 2: haal tracklist op voor die release
+    const detailRes = await fetch(
+      'https://musicbrainz.org/ws/2/release/' + best.id + '?inc=recordings&fmt=json',
+      { headers: { 'User-Agent': 'MuziekApp/1.0 (bruindav.github.io)' } }
+    );
+    const detail = await detailRes.json();
+    const media = detail.media || [];
+    const tracks = [];
+    let globalNum = 1;
+    for (const disc of media) {
+      for (const t of (disc.tracks || [])) {
+        const ms = t.recording?.length || t.length || 0;
+        const dur = ms ? Math.floor(ms/60000) + ':' + String(Math.floor((ms%60000)/1000)).padStart(2,'0') : '';
+        tracks.push({ num: globalNum++, title: t.title, dur });
+      }
+    }
+    trackCache[aid] = tracks.length ? tracks : 'error';
+  } catch(e) {
+    trackCache[aid] = 'error';
+  }
+  rerenderTrackWrap(aid, album);
+}
+
+function rerenderTrackWrap(aid, album) {
+  const wrap = document.getElementById('trackWrap_' + aid);
+  if (wrap) wrap.innerHTML = renderTrackList(album);
+}
+
+function addTrackToPlaylist(albumId, tid, trackTitle, artist) {
+  if (!activePlaylistId) { toast('Selecteer eerst een playlist.', 'err'); return; }
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl) return;
+  if (pl.ids.includes(tid)) { toast('Staat al in de playlist.', ''); return; }
+  // Sla track op als mini-object naast albums
+  if (!trackItems[tid]) {
+    const album = albums.find(a=>a.id===albumId);
+    trackItems[tid] = { id: tid, albumId, title: trackTitle, artist, album: album ? album.title : '', year: album ? album.year : '', isTrack: true };
+  }
+  pl.ids.push(tid);
+  renderPlaylists(); renderPanel(); saveToStorage();
+  // Herrender alleen de trackwrap zodat ✓ verschijnt
+  rerenderTrackWrap(albumId, albums.find(a=>a.id===albumId));
+  toast('"' + trackTitle + '" toegevoegd ✓', 'ok');
+}
+
+
 
 function updateSelUI() {
   const n = selectedIds.size;
@@ -574,18 +722,36 @@ function renderPanel() {
   const pl = playlists.find(p=>p.id===activePlaylistId);
   if (!pl) return;
 
-  hdr.style.display='block';
-  document.getElementById('panelName').value = pl.name;
-  document.getElementById('panelMeta').textContent = `${pl.ids.length} album${pl.ids.length!==1?'s':''}`;
+  // Tel items voor de meta
+  const nTracks = pl.ids.filter(id=>id.includes('_t')).length;
+  const nAlbums = pl.ids.length - nTracks;
+  const metaParts = [];
+  if (nAlbums) metaParts.push(nAlbums + ' album' + (nAlbums!==1?'s':''));
+  if (nTracks) metaParts.push(nTracks + ' track' + (nTracks!==1?'s':''));
+  document.getElementById('panelMeta').textContent = metaParts.join(' · ') || '0 items';
 
   if (!pl.ids.length) {
-    list.innerHTML=`<div class="empty"><div class="empty-icon">➕</div><h3>Leeg</h3><p>Sleep albums vanuit de lijst hiernaartoe, of selecteer albums en klik op <strong>+ Voeg toe</strong>.</p></div>`;
+    list.innerHTML=`<div class="empty"><div class="empty-icon">➕</div><h3>Leeg</h3><p>Sleep albums of tracks hiernaartoe, of selecteer en klik op <strong>+ Voeg toe</strong>.</p></div>`;
     document.getElementById('dzStrip').style.display='none';
     document.getElementById('spStrip').style.display='none';
     return;
   }
 
   list.innerHTML = pl.ids.map((aid,i) => {
+    const isTrack = aid.includes('_t');
+    if (isTrack) {
+      const t = trackItems[aid];
+      if (!t) return '';
+      return `<div class="pl-album">
+        <span class="pl-num">${i+1}</span>
+        <div class="pl-info">
+          <div class="pl-title" style="font-size:12px">🎵 ${esc(t.title)}</div>
+          <div class="pl-artist">${esc(t.artist)}${t.album?' · '+esc(t.album):''}${t.year?' · '+t.year:''}</div>
+        </div>
+        <button class="pl-dz" onclick="openTrackDeezer(${JSON.stringify(t.title)},${JSON.stringify(t.artist)})" title="Deezer">🎧</button>
+        <button class="pl-rm" onclick="removeFromPlaylist('${aid}')" title="Verwijder">✕</button>
+      </div>`;
+    }
     const a = albums.find(x=>x.id===aid);
     if (!a) return '';
     return `<div class="pl-album"
@@ -598,7 +764,7 @@ function renderPanel() {
       <span class="drag-handle" title="Sleep om te herordenen">⠿</span>
       <span class="pl-num">${i+1}</span>
       <div class="pl-info">
-        <div class="pl-title">${esc(a.title)}</div>
+        <div class="pl-title">💿 ${esc(a.title)}</div>
         <div class="pl-artist">${esc(a.artist)}${a.year?' · '+a.year:''}</div>
       </div>
       <button class="pl-sp" onclick="openAlbumSpotify('${a.id}')" title="Spotify zoeken">▶</button>
@@ -627,7 +793,11 @@ function openAlbumDeezer(aid) {
   window.open(url, '_blank');
 }
 
-function openPlaylistDeezer() {
+function openTrackDeezer(title, artist) {
+  const q = encodeURIComponent(artist + ' ' + title);
+  const url = 'https://www.deezer.com/search/' + q;
+  window.open(url, '_blank');
+}
   const pl = playlists.find(p=>p.id===activePlaylistId);
   if (!pl || !pl.ids.length) { toast('Playlist is leeg.', 'err'); return; }
   const a = albums.find(x=>x.id===pl.ids[0]);
@@ -980,11 +1150,13 @@ function updateStats() {
 const LS_ALBUMS    = 'muziekapp_albums';
 const LS_PLAYLISTS = 'muziekapp_playlists';
 const LS_ACTIVE_PL = 'muziekapp_active_pl';
+const LS_TRACKITEMS = 'muziekapp_trackitems';
 
 function saveToStorage() {
   try {
-    localStorage.setItem(LS_ALBUMS,    JSON.stringify(albums));
-    localStorage.setItem(LS_PLAYLISTS, JSON.stringify(playlists));
+    localStorage.setItem(LS_ALBUMS,     JSON.stringify(albums));
+    localStorage.setItem(LS_PLAYLISTS,  JSON.stringify(playlists));
+    localStorage.setItem(LS_TRACKITEMS, JSON.stringify(trackItems));
     if (activePlaylistId) localStorage.setItem(LS_ACTIVE_PL, activePlaylistId);
     else localStorage.removeItem(LS_ACTIVE_PL);
   } catch(e) {
@@ -994,12 +1166,13 @@ function saveToStorage() {
 
 function loadFromStorage() {
   try {
-    const a = localStorage.getItem(LS_ALBUMS);
-    const p = localStorage.getItem(LS_PLAYLISTS);
+    const a  = localStorage.getItem(LS_ALBUMS);
+    const p  = localStorage.getItem(LS_PLAYLISTS);
+    const ti = localStorage.getItem(LS_TRACKITEMS);
     const ap = localStorage.getItem(LS_ACTIVE_PL);
-    if (a) albums    = JSON.parse(a);
-    if (p) playlists = JSON.parse(p);
-    // Herstel actieve playlist alleen als die nog bestaat
+    if (a)  albums     = JSON.parse(a);
+    if (p)  playlists  = JSON.parse(p);
+    if (ti) trackItems = JSON.parse(ti);
     if (ap && playlists.find(pl => pl.id === ap)) activePlaylistId = ap;
   } catch(e) { /* corrupte data — begin fresh */ }
 }
@@ -1008,17 +1181,19 @@ function clearStorage() {
   if (!confirm('Weet je zeker dat je de hele database wilt wissen?')) return;
   localStorage.removeItem(LS_ALBUMS);
   localStorage.removeItem(LS_PLAYLISTS);
-  albums = []; playlists = [];
+  localStorage.removeItem(LS_TRACKITEMS);
+  localStorage.removeItem(LS_ACTIVE_PL);
+  albums = []; playlists = []; trackItems = {};
   activePlaylistId = null; currentView = 'all'; selectedIds.clear();
   updateFilters(); updateStats(); render(); renderPlaylists(); renderPanel();
   toast('Database gewist.', '');
 }
 
 function storageSize() {
-  const bytes = (localStorage.getItem(LS_ALBUMS)||'').length
-              + (localStorage.getItem(LS_PLAYLISTS)||'').length;
-  if (bytes < 1024)       return bytes + ' B';
-  if (bytes < 1024*1024)  return (bytes/1024).toFixed(1) + ' KB';
+  const bytes = [LS_ALBUMS, LS_PLAYLISTS, LS_TRACKITEMS]
+    .reduce((s,k) => s + (localStorage.getItem(k)||'').length, 0);
+  if (bytes < 1024)      return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
   return (bytes/1024/1024).toFixed(2) + ' MB';
 }
 
