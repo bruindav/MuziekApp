@@ -1,4 +1,4 @@
-<!-- MuziekApp V28 | index.html | Laatste wijziging: V28 - Fix invite emailToKey (punt+@ encoding), sendInvite consistent -->
+<!-- MuziekApp V29 | index.html | Laatste wijziging: V29 - Betere foutafhandeling resolveHousehold, console logging voor diagnose -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -716,42 +716,58 @@ function emailToKey(email) {
 }
 
 async function resolveHousehold(uid) {
-  // Eigenaar — gebruik household, migreer data van /users als nodig
+  // Eigenaar
   if (uid === OWNER_UID) {
     householdId = OWNER_UID;
     await migrateUserDataToHousehold(uid);
     return true;
   }
 
-  // Check member toegang
+  // Check of al geaccepteerd member
   try {
     const memberDoc = await getDoc(doc(db, 'households', OWNER_UID, 'members', uid));
     if (memberDoc.exists() && memberDoc.data().status === 'accepted') {
+      console.log('Toegang via member record');
       householdId = OWNER_UID;
       return true;
     }
-  } catch(e) {}
+  } catch(e) {
+    console.warn('Member check fout:', e.code, e.message);
+  }
 
-  // Check uitnodiging op email (gesla­gen als emailToKey)
+  // Check uitnodiging op email
   if (currentUser.email) {
     try {
       const key = emailToKey(currentUser.email);
+      console.log('Zoek invite met key:', key);
       const invite = await getDoc(doc(db, 'households', OWNER_UID, 'invites', key));
+      console.log('Invite gevonden:', invite.exists(), invite.data?.());
       if (invite.exists()) {
+        // Schrijf member record
         await setDoc(doc(db, 'households', OWNER_UID, 'members', uid), {
           email:    currentUser.email,
           name:     currentUser.displayName || currentUser.email,
           joinedAt: serverTimestamp(),
           status:   'accepted'
         });
+        console.log('Member aangemaakt voor', currentUser.email);
         try { await deleteDoc(invite.ref); } catch(e) {}
         householdId = OWNER_UID;
         return true;
+      } else {
+        console.warn('Geen invite gevonden voor key:', key, '— controleer Firestore rules en of invite bestaat');
       }
-    } catch(e) { console.log('invite check error:', e); }
+    } catch(e) {
+      console.error('Invite check fout:', e.code, e.message);
+      // Als het een permissions fout is, geef duidelijke melding
+      if (e.code === 'permission-denied') {
+        toast('Firestore rules blokkeren uitnodiging — zie console voor instructies', 'err');
+        console.error('FIX: Pas Firestore rules aan zodat ingelogde gebruikers invites kunnen lezen');
+      }
+    }
   }
 
-  // Geen toegang — eigen household
+  // Geen toegang
   householdId = uid;
   return false;
 }
