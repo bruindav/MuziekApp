@@ -1,4 +1,4 @@
-<!-- MuziekApp V4 | index.html | Laatste wijziging: V4 - Spotify scopes fix (user-read-private), robuuste token parsing -->
+<!-- MuziekApp V6 | index.html | Laatste wijziging: V6 - Redirect URI trailing slash, verifier localStorage backup, playlist privé voor Dev Mode -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -594,8 +594,8 @@ function removeFromPlaylist(aid) {
 
 // ── SPOTIFY OAUTH (PKCE) ──────────────────────────────────────────
 const SP_CLIENT_ID   = '8de3a59560464b38bd66e786e1e7a5dc';
-const SP_REDIRECT    = 'https://bruindav.github.io/MuziekApp';
-const SP_SCOPES = 'user-read-private user-read-email playlist-modify-public playlist-modify-private';
+const SP_REDIRECT    = 'https://bruindav.github.io/MuziekApp/';
+const SP_SCOPES = 'user-read-private user-read-email playlist-modify-private';
 
 let spToken = null;
 let spUserId = null;
@@ -619,7 +619,10 @@ async function generatePKCE() {
 
 async function spotifyLogin() {
   const { verifier, challenge } = await generatePKCE();
+  // Bewaar in zowel sessionStorage als localStorage — GitHub Pages doet soms een redirect
+  // waardoor sessionStorage leeg is als de callback binnenkomt
   sessionStorage.setItem('sp_verifier', verifier);
+  localStorage.setItem('sp_verifier_backup', verifier);
   const params = new URLSearchParams({
     client_id:             SP_CLIENT_ID,
     response_type:         'code',
@@ -646,7 +649,10 @@ async function handleSpotifyCallback() {
   // Clean URL meteen — data staat al in localStorage
   window.history.replaceState({}, '', window.location.pathname);
 
-  const verifier = sessionStorage.getItem('sp_verifier');
+  // Gebruik sessionStorage, met localStorage als fallback (GitHub Pages redirect probleem)
+  const verifier = sessionStorage.getItem('sp_verifier') || localStorage.getItem('sp_verifier_backup');
+  sessionStorage.removeItem('sp_verifier');
+  localStorage.removeItem('sp_verifier_backup');
   if (!verifier) { toast('Login sessie verlopen, probeer opnieuw.', 'err'); return; }
 
   // Toon voortgang in strip
@@ -689,14 +695,29 @@ async function handleSpotifyCallback() {
 }
 
 async function fetchSpotifyUser() {
-  const res  = await fetch('https://api.spotify.com/v1/me', {
-    headers: { Authorization: 'Bearer ' + spToken }
+  const res = await fetch('https://api.spotify.com/v1/me', {
+    headers: { 'Authorization': 'Bearer ' + spToken }
   });
+
+  if (!res.ok) {
+    const raw = await res.text();
+    let errMsg = 'HTTP ' + res.status;
+    try { const j = JSON.parse(raw); errMsg += ': ' + (j.error?.message || raw); } catch(e) { errMsg += ': ' + raw.slice(0, 100); }
+
+    if (res.status === 403) {
+      errMsg = 'Toegang geweigerd (403). Voeg je Spotify-account toe via Dashboard \u2192 User Management';
+    }
+    toast(errMsg, 'err');
+    spToken = null;
+    updateSpotifyLoginUI();
+    return;
+  }
+
   const user = await res.json();
   spUserId   = user.id;
-  spUserName = user.display_name || user.id;
+  spUserName = user.display_name || user.email || user.id;
   updateSpotifyLoginUI();
-  toast(`Ingelogd als ${spUserName} ✓`, 'ok');
+  toast('Ingelogd als ' + spUserName + ' \u2713', 'ok');
 }
 
 function updateSpotifyLoginUI() {
@@ -739,7 +760,7 @@ async function exportToSpotify() {
     const playlistBody = {
       name: pl.name,
       description: 'Aangemaakt via Mijn Muziek - ' + pl.ids.length + ' albums',
-      public: true
+      public: false
     };
     const res = await fetch(`https://api.spotify.com/v1/users/${spUserId}/playlists`, {
       method: 'POST',
