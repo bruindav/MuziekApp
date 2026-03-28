@@ -1,4 +1,4 @@
-<!-- MuziekApp V6 | index.html | Laatste wijziging: V6 - Redirect URI trailing slash, verifier localStorage backup, playlist privé voor Dev Mode -->
+<!-- MuziekApp V7 | index.html | Laatste wijziging: V7 - Debug versie voor Spotify 403 diagnose -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -671,6 +671,8 @@ async function handleSpotifyCallback() {
   });
 
   const rawText = await res.text();
+  console.log('Token exchange status:', res.status);
+  console.log('Token exchange response:', rawText);
   let data;
   try {
     data = JSON.parse(rawText);
@@ -679,6 +681,7 @@ async function handleSpotifyCallback() {
     document.getElementById('spStrip').style.display = 'none';
     return;
   }
+  console.log('Scopes ontvangen:', data.scope);
 
   sessionStorage.removeItem('sp_verifier');
 
@@ -699,21 +702,27 @@ async function fetchSpotifyUser() {
     headers: { 'Authorization': 'Bearer ' + spToken }
   });
 
-  if (!res.ok) {
-    const raw = await res.text();
-    let errMsg = 'HTTP ' + res.status;
-    try { const j = JSON.parse(raw); errMsg += ': ' + (j.error?.message || raw); } catch(e) { errMsg += ': ' + raw.slice(0, 100); }
+  const rawText = await res.text();
+  console.log('Spotify /me status:', res.status);
+  console.log('Spotify /me response:', rawText);
+  console.log('Token gebruikt:', spToken ? spToken.slice(0,20) + '...' : 'LEEG');
 
-    if (res.status === 403) {
-      errMsg = 'Toegang geweigerd (403). Voeg je Spotify-account toe via Dashboard \u2192 User Management';
+  if (!res.ok) {
+    let errDetail = 'HTTP ' + res.status;
+    try {
+      const j = JSON.parse(rawText);
+      errDetail = 'HTTP ' + res.status + ': ' + (j.error?.message || rawText);
+    } catch(e) {
+      errDetail = 'HTTP ' + res.status + ': ' + rawText.slice(0, 120);
     }
-    toast(errMsg, 'err');
+    // Toon volledige fout in een alert zodat je hem ziet
+    alert('Spotify /v1/me fout:\n' + errDetail + '\n\nCheck ook de browser console (F12).');
     spToken = null;
     updateSpotifyLoginUI();
     return;
   }
 
-  const user = await res.json();
+  const user = JSON.parse(rawText);
   spUserId   = user.id;
   spUserName = user.display_name || user.email || user.id;
   updateSpotifyLoginUI();
