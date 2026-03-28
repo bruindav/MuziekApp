@@ -1,4 +1,4 @@
-<!-- MuziekApp V36 | index.html | Laatste wijziging: V36 - Fix drawer overlay blokkering, scroll herstel albumlijst, alpha-index fixed positie -->
+<!-- MuziekApp V37 | index.html | Laatste wijziging: V37 - Beheer scroll fix: height chain grid/flex correctie, mainWrapper als flex-container -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -30,15 +30,21 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
 
 /* ── LAYOUT ── */
+#mainWrapper {
+  display:flex; flex-direction:column;
+  flex:1; min-height:0; overflow:hidden;
+}
 #appLayout {
   display: grid;
   grid-template-columns: 240px 1fr 290px;
-  flex: 1;
-  overflow: hidden;
+  flex: 1;           /* werkt als mainWrapper flex-container is */
   min-height: 0;
+  overflow: hidden;
 }
-#sidebar    { grid-column:1; overflow-y:auto; }
-#rightPanel { grid-column:3; overflow:hidden; display:flex; flex-direction:column; }
+/* grid-items hebben ook min-height:0 nodig */
+#sidebar, #mainArea, #rightPanel { min-height: 0; overflow: hidden; }
+#sidebar    { grid-column:1; overflow-y:auto; min-height:0; }
+#mainArea   { grid-column:2; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
 
 #appLayout.tab-bibliotheek { grid-template-columns: 0 1fr 0; }
 #appLayout.tab-bibliotheek #sidebar,
@@ -75,7 +81,7 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 /* ── HEIGHT CHAIN (scroll fix) ── */
 #mainWrapper { display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
 #appLayout   { flex:1; min-height:0; }
-#mainArea    { grid-column:2; display:flex; flex-direction:column; overflow:hidden; min-height:0; flex:1; }
+#rightPanel { grid-column:3; overflow:hidden; display:flex; flex-direction:column; min-height:0; }
 #libView     { display:flex; flex-direction:column; flex:1; overflow:hidden; min-height:0; }
 .toolbar     { flex-shrink:0; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
 .view-header { flex-shrink:0; padding:12px 18px 4px; display:flex; align-items:center; justify-content:space-between; }
