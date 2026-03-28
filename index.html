@@ -1,4 +1,4 @@
-<!-- MuziekApp V32 | index.html | Laatste wijziging: V32 - Playlist modus balk (mobiel), track popup kies playlist, + knop per album -->
+<!-- MuziekApp V33 | index.html | Laatste wijziging: V33 - Fix illegal return: updatePlModeBar function declaratie hersteld -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -1601,6 +1601,8 @@ window.addAlbumFromMode = async function(aid) {
   const a = albums.find(x=>x.id===aid);
   toast((a?'"'+a.title+'"':'Album') + ' toegevoegd \u2713','ok');
 };
+
+function updatePlModeBar() {
   const pl = playlists.find(p=>p.id===activePlaylistId);
   if (!pl) return;
   const n = document.getElementById('plModeName');
