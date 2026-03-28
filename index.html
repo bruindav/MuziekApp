@@ -1,4 +1,4 @@
-<!-- MuziekApp V35 | index.html | Laatste wijziging: V35 - Alfabet navigatie: desktop balk + mobiele zijindex, sectiekoppen in lijst -->
+<!-- MuziekApp V36 | index.html | Laatste wijziging: V36 - Fix drawer overlay blokkering, scroll herstel albumlijst, alpha-index fixed positie -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -104,9 +104,10 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 /* Mobiel: index aan de zijkant */
 .alpha-index {
   display:none;
-  position:absolute; right:2px; top:0; bottom:0;
+  position:fixed; right:0; top:50%; transform:translateY(-50%);
   flex-direction:column; justify-content:center; align-items:center;
-  gap:1px; z-index:10; padding:4px 0;
+  gap:0px; z-index:50; padding:4px 2px;
+  background:rgba(19,19,26,.85); border-radius:8px 0 0 8px;
   pointer-events:none;
 }
 .alpha-index.visible { pointer-events:all; }
@@ -131,7 +132,6 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 @media (max-width:768px) {
   .alpha-bar { display:none; }
   .alpha-index { display:flex; }
-  .table-wrap { position:relative; }
 }
 @media (min-width:769px) {
   .alpha-index { display:none !important; }
@@ -286,8 +286,8 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
   /* Panel list scrollbaar */
   .panel-list { overflow-y:auto !important; -webkit-overflow-scrolling:touch; flex:1; min-height:0; }
 
-  /* Playlist drawer */
-  .pl-drawer-overlay { display:block !important; }
+  /* Playlist drawer — overlay via JS getoond */
+  .pl-drawer-overlay { display:none; }
 
   /* Toolbar */
   .toolbar { flex-wrap:wrap; gap:6px; padding:8px 10px; }
@@ -609,11 +609,9 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     </div>
     <!-- Desktop letterbalk -->
     <div class="alpha-bar" id="alphaBar"></div>
-    <div style="position:relative;flex:1;overflow:hidden;display:flex;flex-direction:column">
-      <div class="table-wrap" id="tableWrap">
-        <div class="fb-loading">⏳ Bibliotheek laden…</div>
-      </div>
-      <!-- Mobiele index -->
+    <div class="table-wrap" id="tableWrap">
+      <div class="fb-loading">⏳ Bibliotheek laden…</div>
+      <!-- Mobiele index zit in de wrap zodat position:sticky werkt -->
       <div class="alpha-index" id="alphaIndex"></div>
     </div>
   </div>
