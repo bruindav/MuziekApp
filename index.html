@@ -1,1 +1,932 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mijn Muziek</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c27;
+    --border: #2a2a3a;
+    --accent: #ff4d6d;
+    --spotify: #1db954;
+    --spotify-dark: #158a3e;
+    --text: #e8e8f0;
+    --muted: #6b6b85;
+    --green: #4ecca3;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+  header { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; flex-shrink: 0; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; background: linear-gradient(135deg, var(--accent), var(--deezer)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .header-stats { display: flex; gap: 20px; font-size: 13px; color: var(--muted); }
+  .header-stats span strong { color: var(--text); font-weight: 600; }
+
+  .layout { display: grid; grid-template-columns: 260px 1fr 300px; flex: 1; height: calc(100vh - 57px); overflow: hidden; }
+
+  /* SIDEBAR */
+  .sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
+  .sidebar-section { padding: 18px; border-bottom: 1px solid var(--border); }
+  .sidebar-label { font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .import-btn { width: 100%; padding: 10px; background: linear-gradient(135deg, var(--accent), #c9184a); border: none; border-radius: 8px; color: white; font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 14px; cursor: pointer; transition: opacity .2s, transform .1s; }
+  .import-btn:hover { opacity: .85; transform: translateY(-1px); }
+  #csvInput { display: none; }
+
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background .15s; margin-bottom: 2px; }
+  .nav-item:hover { background: var(--surface2); }
+  .nav-item.active { background: var(--surface2); }
+  .nav-dot { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .nav-info { flex: 1; min-width: 0; }
+  .nav-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nav-count { font-size: 11px; color: var(--muted); }
+  .nav-del { opacity: 0; transition: opacity .15s; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 3px 5px; border-radius: 4px; }
+  .nav-item:hover .nav-del { opacity: 1; }
+  .nav-del:hover { color: var(--accent); }
+  .new-pl-btn { width: 100%; padding: 8px; background: transparent; border: 1px dashed var(--border); border-radius: 8px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; transition: all .15s; margin-top: 8px; }
+  .new-pl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* MAIN */
+  .main { display: flex; flex-direction: column; overflow: hidden; }
+  .toolbar { padding: 14px 22px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .search-wrap { flex: 1; position: relative; }
+  .search-wrap input { width: 100%; padding: 9px 14px 9px 34px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: border-color .15s; }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 13px; }
+  .filter-sel { padding: 9px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; outline: none; cursor: pointer; max-width: 150px; }
+  .add-sel-btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 13px; cursor: pointer; white-space: nowrap; transition: all .15s; }
+  .add-sel-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  .view-header { padding: 16px 22px 6px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .view-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; }
+  .sel-count { font-size: 13px; color: var(--muted); }
+
+  .table-wrap { flex: 1; overflow-y: auto; padding: 0 22px 22px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 1; cursor: pointer; white-space: nowrap; }
+  thead th:hover { color: var(--text); }
+  tbody tr { border-bottom: 1px solid rgba(42,42,58,.4); transition: background .1s; cursor: pointer; }
+  tbody tr:hover { background: var(--surface); }
+  tbody tr.selected { background: rgba(255,77,109,.07); }
+  td { padding: 9px 10px; font-size: 13px; vertical-align: middle; }
+  td.num { color: var(--muted); font-size: 12px; width: 30px; }
+  .genre-tag { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 11px; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
+  .in-pl { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; }
+
+  .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 10px; color: var(--muted); text-align: center; padding: 40px; }
+  .empty-icon { font-size: 44px; opacity: .35; }
+  .empty h3 { font-size: 17px; color: var(--text); font-weight: 500; }
+  .empty p { font-size: 13px; line-height: 1.6; max-width: 300px; }
+
+  /* PANEL */
+  .panel { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+  .panel-hdr { padding: 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .panel-name-input { font-family: 'Bebas Neue', sans-serif; font-size: 19px; letter-spacing: 2px; background: none; border: none; color: var(--text); width: 100%; outline: none; margin-bottom: 6px; }
+  .panel-meta { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .panel-btns { display: flex; gap: 7px; flex-wrap: wrap; }
+  .pbtn { flex: 1; padding: 7px 10px; border-radius: 8px; border: none; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: opacity .15s, transform .1s; white-space: nowrap; }
+  .pbtn:hover { opacity: .85; transform: translateY(-1px); }
+  .pbtn-spotify { background: linear-gradient(135deg, #1db954, #158a3e); color: white; }
+  .pbtn-json { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+  .pbtn-csv { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+
+  /* Spotify status strip */
+  .sp-strip { padding: 10px 16px; border-top: 1px solid var(--border); flex-shrink: 0; }
+  .sp-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+  .sp-row { display: flex; align-items: center; gap: 9px; border-radius: 9px; padding: 9px 11px; }
+  .sp-row.logged-out { background: rgba(29,185,84,.08); border: 1px solid rgba(29,185,84,.25); }
+  .sp-row.logged-in  { background: rgba(29,185,84,.12); border: 1px solid rgba(29,185,84,.4); }
+  .sp-row.working    { background: rgba(255,186,8,.08);  border: 1px solid rgba(255,186,8,.3); }
+  .sp-row.done       { background: rgba(78,204,163,.08); border: 1px solid rgba(78,204,163,.3); }
+  .sp-icon { font-size: 18px; }
+  .sp-info { flex: 1; min-width: 0; }
+  .sp-title { font-size: 13px; font-weight: 500; }
+  .sp-sub   { font-size: 11px; color: var(--muted); }
+  .sp-btn { padding: 5px 11px; border: none; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .sp-btn-green  { background: var(--spotify); color: white; }
+  .sp-btn-muted  { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+
+  /* Progress bar */
+  .sp-progress { height: 3px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .sp-progress-bar { height: 100%; background: var(--spotify); border-radius: 2px; width: 0%; transition: width .3s; }
+
+  .panel-list { flex: 1; overflow-y: auto; padding: 10px; position: relative; }
+  .pl-album { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: 8px; transition: background .1s; }
+  .pl-album:hover { background: var(--surface2); }
+  .pl-num { font-size: 11px; color: var(--muted); width: 16px; text-align: right; flex-shrink: 0; }
+  .pl-info { flex: 1; min-width: 0; }
+  .pl-title { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-artist { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-sp { opacity: 0; transition: opacity .15s; background: none; border: none; color: var(--spotify); cursor: pointer; font-size: 13px; padding: 2px 4px; }
+  .pl-rm { opacity: 0; transition: opacity .15s; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 4px; }
+  .pl-album:hover .pl-sp, .pl-album:hover .pl-rm { opacity: 1; }
+  .pl-rm:hover { color: var(--accent); }
+
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 26px; width: 340px; transform: translateY(10px); transition: transform .2s; }
+  .overlay.open .modal { transform: translateY(0); }
+  .modal h3 { font-size: 17px; font-weight: 600; margin-bottom: 14px; }
+  .modal input { width: 100%; padding: 10px 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; margin-bottom: 14px; }
+  .modal input:focus { border-color: var(--accent); }
+  .modal-btns { display: flex; gap: 9px; justify-content: flex-end; }
+  .btn-cancel { padding: 8px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-family: 'DM Sans', sans-serif; cursor: pointer; }
+  .btn-ok { padding: 8px 16px; background: var(--accent); border: none; border-radius: 8px; color: white; font-family: 'DM Sans', sans-serif; font-weight: 600; cursor: pointer; }
+
+  .toast { position: fixed; bottom: 22px; right: 22px; background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 11px 16px; font-size: 13px; color: var(--text); z-index: 300; transform: translateY(50px); opacity: 0; transition: all .25s; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.ok { border-left: 3px solid var(--green); }
+  .toast.err { border-left: 3px solid var(--accent); }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* Drag & drop */
+  tbody tr[draggable] { cursor: grab; }
+  tbody tr[draggable]:active { cursor: grabbing; }
+  tbody tr.drag-over td { border-top: 2px solid var(--accent) !important; }
+  tbody tr.dragging { opacity: .4; }
+
+  .pl-album[draggable] { cursor: grab; }
+  .pl-album[draggable]:active { cursor: grabbing; }
+  .pl-album.drag-over { border-top: 2px solid var(--accent); }
+  .pl-album.dragging { opacity: .3; }
+
+  .drag-handle { color: var(--muted); font-size: 12px; cursor: grab; padding: 0 4px; opacity: 0; transition: opacity .15s; flex-shrink: 0; }
+  .pl-album:hover .drag-handle { opacity: 1; }
+
+  /* Drop zone hint on panel when dragging from table */
+  .panel-list.drop-target { background: rgba(255,77,109,.05); border: 1px dashed var(--accent); border-radius: 10px; }
+  .panel-list.drop-target::after {
+    content: 'Sleep hier naartoe';
+    display: flex; align-items: center; justify-content: center;
+    position: absolute; inset: 0;
+    color: var(--accent); font-size: 13px; font-weight: 600;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">♪ Mijn Muziek</div>
+  <div class="header-stats">
+    <span id="statAlbums">Albums: <strong>0</strong></span>
+    <span id="statPlaylists">Playlists: <strong>0</strong></span>
+  </div>
+  <div id="spotifyLoginArea">
+    <button onclick="spotifyLogin()" style="padding:8px 16px;background:var(--spotify);border:none;border-radius:20px;color:white;font-family:'DM Sans',sans-serif;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+      Inloggen met Spotify
+    </button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Bibliotheek</div>
+      <button class="import-btn" onclick="document.getElementById('csvInput').click()">⬆ CSV Importeren</button>
+      <input type="file" id="csvInput" accept=".csv" onchange="importCSV(event)">
+      <div style="margin-top:10px">
+        <div class="nav-item active" id="allItem" onclick="showAll()">
+          <div class="nav-dot" style="background:rgba(255,77,109,.12);color:var(--accent)">💿</div>
+          <div class="nav-info">
+            <div class="nav-name">Alle Albums</div>
+            <div class="nav-count" id="allCount">0 albums</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-section" style="flex:1">
+      <div class="sidebar-label">Mijn Playlists</div>
+      <div id="plList"></div>
+      <button class="new-pl-btn" onclick="openModal()">+ Nieuwe Playlist</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="toolbar">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="Zoek op artiest, album, genre..." oninput="render()">
+      </div>
+      <select class="filter-sel" id="genreFilter" onchange="render()"><option value="">Alle genres</option></select>
+      <select class="filter-sel" id="yearFilter" onchange="render()" style="max-width:100px"><option value="">Alle jaren</option></select>
+      <button class="add-sel-btn" id="addSelBtn" onclick="addSelected()" style="display:none">+ Voeg toe</button>
+    </div>
+    <div class="view-header">
+      <h2 id="viewTitle">Alle Albums</h2>
+      <span class="sel-count" id="selCount"></span>
+    </div>
+    <div class="table-wrap" id="tableWrap">
+      <div class="empty">
+        <div class="empty-icon">💿</div>
+        <h3>Geen albums geladen</h3>
+        <p>Importeer je CSV-exportbestand.<br><br>Herkende kolommen:<br><strong>Artist · Title · Release Date · Genre · Tracks · Length · Label</strong></p>
+      </div>
+    </div>
+  </main>
+
+  <aside class="panel">
+    <div class="panel-hdr" id="panelHdr" style="display:none">
+      <input class="panel-name-input" id="panelName" type="text" oninput="renamePlaylist(this.value)">
+      <div class="panel-meta" id="panelMeta">0 albums</div>
+      <div class="panel-btns">
+        <button class="pbtn pbtn-spotify" onclick="exportToSpotify()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+          Naar Spotify
+        </button>
+        <button class="pbtn pbtn-json" onclick="exportJSON()">↓ JSON</button>
+        <button class="pbtn pbtn-csv" onclick="exportCSV()">↓ CSV</button>
+      </div>
+    </div>
+    <div class="panel-list" id="panelList">
+      <div class="empty">
+        <div class="empty-icon">📋</div>
+        <h3>Geen playlist</h3>
+        <p>Selecteer of maak een playlist.</p>
+      </div>
+    </div>
+    <div class="sp-strip" id="spStrip" style="display:none">
+      <div class="sp-label">Spotify</div>
+      <div class="sp-row" id="spRow"></div>
+    </div>
+  </aside>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3>Nieuwe Playlist</h3>
+    <input type="text" id="modalInput" placeholder="Naam..." onkeydown="if(event.key==='Enter')confirmModal()">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Annuleren</button>
+      <button class="btn-ok" onclick="confirmModal()">Aanmaken</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let albums = [], playlists = [], activePlaylistId = null, currentView = 'all';
+let selectedIds = new Set(), sortCol = 'artist', sortAsc = true;
+
+const COLORS = [
+  {bg:'rgba(255,77,109,.12)',c:'#ff4d6d',i:'🎸'},
+  {bg:'rgba(162,89,255,.12)',c:'#a259ff',i:'🎹'},
+  {bg:'rgba(78,204,163,.12)',c:'#4ecca3',i:'🎺'},
+  {bg:'rgba(255,186,8,.12)',c:'#ffba08',i:'🎷'},
+  {bg:'rgba(0,180,216,.12)',c:'#00b4d8',i:'🥁'},
+  {bg:'rgba(251,133,0,.12)',c:'#fb8500',i:'🎻'},
+];
+
+// ── CSV IMPORT ────────────────────────────────────────────────────
+function importCSV(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => { parseCSV(ev.target.result); e.target.value = ''; };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) { toast('CSV lijkt leeg.', 'err'); return; }
+
+  // Scan voor de echte header-regel (bestand kan rommel bevatten vóór de CSV)
+  const KNOWN = ['artist','artiest','title','titel','album','genre','tracks','length'];
+  let headerLineIdx = -1, delim = ',';
+  for (let i = 0; i < Math.min(lines.length, 600); i++) {
+    const tryC = lines[i].split(',').map(h => h.toLowerCase().replace(/"/g,'').trim());
+    const tryS = lines[i].split(';').map(h => h.toLowerCase().replace(/"/g,'').trim());
+    const mC = tryC.filter(h => KNOWN.includes(h)).length;
+    const mS = tryS.filter(h => KNOWN.includes(h)).length;
+    if (mC >= 2 || mS >= 2) { delim = mS > mC ? ';' : ','; headerLineIdx = i; break; }
+  }
+  if (headerLineIdx < 0) { toast('Geen herkende kolomkoppen gevonden (artist, title, genre…).', 'err'); return; }
+
+  const headers = splitRow(lines[headerLineIdx], delim).map(h => h.toLowerCase().trim());
+
+  // Map to your exact export_albums.csv column names
+  const idx = {
+    artist: findCol(headers, ['artist','artiest']),
+    title:  findCol(headers, ['title','titel']),
+    year:   findCol(headers, ['release date','release','jaar','year']),
+    tracks: findCol(headers, ['tracks','nummers']),
+    length: findCol(headers, ['length','lengte','duration']),
+    genre:  findCol(headers, ['genre']),
+    label:  findCol(headers, ['label']),
+  };
+
+  const get = (row, key) => {
+    const i = idx[key];
+    if (i < 0 || i >= row.length) return '';
+    return row[i].trim().replace(/^"|"$/g,'');
+  };
+
+  // Take first genre segment (before | or ;) for filtering
+  const firstGenre = g => g ? g.split(/[|;]/)[0].trim() : '';
+  // Extract 4-digit year from strings like "Jan 21, 1973" or "1999"
+  const parseYear = s => { const m = (s||'').match(/\b(19|20)\d{2}\b/); return m ? m[0] : ''; };
+
+  let added = 0, skipped = 0;
+  // Loop over data-regels ná de header
+  for (let i = headerLineIdx + 1; i < lines.length; i++) {
+    const row = splitRow(lines[i], delim);
+    const artist = get(row,'artist'), title = get(row,'title');
+    if (!artist && !title) { skipped++; continue; }
+    albums.push({
+      id: 'al_' + Math.random().toString(36).slice(2),
+      artist: artist || '(onbekend)',
+      title:  title  || '(onbekend)',
+      year:   parseYear(get(row,'year')),
+      tracks: get(row,'tracks'),
+      length: get(row,'length'),
+      genre:  get(row,'genre'),
+      genreFirst: firstGenre(get(row,'genre')),
+      label:  get(row,'label'),
+    });
+    added++;
+  }
+
+  updateFilters(); updateStats(); render();
+  toast(`${added} albums geïmporteerd${skipped?`, ${skipped} overgeslagen`:''} ✓`, 'ok');
+}
+
+function findCol(headers, aliases) {
+  for (const a of aliases) { const i = headers.indexOf(a); if (i >= 0) return i; }
+  return -1;
+}
+
+function splitRow(line, delim) {
+  const result = []; let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === delim && !inQ) { result.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  result.push(cur);
+  return result;
+}
+
+// ── RENDER TABLE ─────────────────────────────────────────────────
+function render() {
+  const wrap  = document.getElementById('tableWrap');
+  const q     = document.getElementById('searchInput').value.toLowerCase();
+  const genre = document.getElementById('genreFilter').value;
+  const year  = document.getElementById('yearFilter').value;
+
+  let list = currentView === 'all' ? albums
+    : (playlists.find(p=>p.id===currentView)||{ids:[]}).ids.map(id=>albums.find(a=>a.id===id)).filter(Boolean);
+
+  let filtered = list.filter(a => {
+    const mq = !q || [a.artist,a.title,a.genreFirst,a.label].join(' ').toLowerCase().includes(q);
+    const mg = !genre || a.genreFirst === genre;
+    const my = !year  || a.year === year;
+    return mq && mg && my;
+  });
+
+  filtered.sort((a,b) => {
+    let va = a[sortCol]||'', vb = b[sortCol]||'';
+    if (sortCol==='year'||sortCol==='tracks') { va=parseInt(va)||0; vb=parseInt(vb)||0; }
+    const c = typeof va==='number' ? va-vb : va.localeCompare(vb,'nl',{sensitivity:'base'});
+    return sortAsc ? c : -c;
+  });
+
+  if (!albums.length) {
+    wrap.innerHTML = `<div class="empty"><div class="empty-icon">💿</div><h3>Geen albums geladen</h3><p>Importeer je CSV-exportbestand.<br><br>Herkende kolommen:<br><strong>Artist · Title · Release Date · Genre · Tracks · Length · Label</strong></p></div>`;
+    return;
+  }
+  if (!filtered.length) {
+    wrap.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><h3>Geen resultaten</h3><p>Probeer een andere zoekterm of filter.</p></div>`;
+    return;
+  }
+
+  const plIds = activePlaylistId
+    ? new Set((playlists.find(p=>p.id===activePlaylistId)||{ids:[]}).ids)
+    : new Set();
+
+  const th = (col,lbl) => `<th onclick="sortBy('${col}')">${lbl} ${sortCol===col?(sortAsc?'↑':'↓'):''}</th>`;
+
+  wrap.innerHTML = `<table>
+    <thead><tr>
+      <th style="width:30px"></th>
+      ${th('artist','Artiest')}
+      ${th('title','Album')}
+      ${th('year','Jaar')}
+      ${th('tracks','#')}
+      ${th('length','Lengte')}
+      <th>Genre</th>
+      <th style="width:16px"></th>
+    </tr></thead>
+    <tbody>
+    ${filtered.map((a,i) => `<tr class="${selectedIds.has(a.id)?'selected':''}"
+        draggable="true"
+        data-id="${a.id}"
+        onclick="toggleSel('${a.id}')"
+        ondragstart="onTableDragStart(event,'${a.id}')"
+        ondragend="onTableDragEnd(event)">
+      <td class="num">${i+1}</td>
+      <td><strong style="font-weight:500;font-size:14px">${esc(a.artist)}</strong></td>
+      <td><span style="font-size:13px">${esc(a.title)}</span>${a.label?`<span style="font-size:11px;color:var(--muted);display:block">${esc(a.label)}</span>`:''}</td>
+      <td style="color:var(--muted)">${a.year||''}</td>
+      <td style="color:var(--muted)">${a.tracks||''}</td>
+      <td style="color:var(--muted);font-size:12px">${a.length||''}</td>
+      <td>${a.genreFirst?`<span class="genre-tag" title="${esc(a.genre)}">${esc(a.genreFirst)}</span>`:''}</td>
+      <td>${plIds.has(a.id)?'<span class="in-pl" title="In playlist"></span>':''}</td>
+    </tr>`).join('')}
+    </tbody></table>`;
+
+  updateSelUI();
+}
+
+function sortBy(col) { sortAsc = sortCol===col ? !sortAsc : true; sortCol = col; render(); }
+function toggleSel(id) { if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id); render(); }
+
+function updateSelUI() {
+  const n = selectedIds.size;
+  const btn = document.getElementById('addSelBtn');
+  const cnt = document.getElementById('selCount');
+  if (n>0 && activePlaylistId) {
+    btn.style.display='block'; btn.className='add-sel-btn active';
+    btn.textContent=`+ ${n} toevoegen`;
+  } else if (n>0) {
+    btn.style.display='block'; btn.className='add-sel-btn';
+    btn.textContent=`${n} geselecteerd`;
+  } else { btn.style.display='none'; }
+  cnt.textContent = n>0 ? `${n} geselecteerd` : '';
+}
+
+// ── PLAYLISTS ─────────────────────────────────────────────────────
+function createPlaylist(name) {
+  const pl = {id:'pl_'+Math.random().toString(36).slice(2), name, ids:[], ci:playlists.length%COLORS.length};
+  playlists.push(pl);
+  activePlaylistId = pl.id;  // selecteer als doel, maar wissel view NIET
+  renderPlaylists(); renderPanel(); render(); updateStats();
+  toast(`Playlist "${name}" aangemaakt — sleep albums hierin ✓`, 'ok');
+}
+
+function renderPlaylists() {
+  document.getElementById('plList').innerHTML = playlists.map(pl => {
+    const c = COLORS[pl.ci];
+    return `<div class="nav-item ${pl.id===activePlaylistId?'active':''}" onclick="selectPlaylist('${pl.id}')">
+      <div class="nav-dot" style="background:${c.bg};color:${c.c}">${c.i}</div>
+      <div class="nav-info"><div class="nav-name">${esc(pl.name)}</div><div class="nav-count">${pl.ids.length} albums</div></div>
+      <button class="nav-del" onclick="event.stopPropagation();delPlaylist('${pl.id}')">✕</button>
+    </div>`;
+  }).join('');
+  // "Alle Albums" blijft altijd actief in de linker nav
+  document.getElementById('allItem').classList.add('active');
+}
+
+function selectPlaylist(id) {
+  activePlaylistId = id;
+  // View blijft altijd op alle albums — playlist is alleen het doel in het paneel
+  renderPlaylists(); renderPanel();
+  // Herrender tabel zodat groene bolletjes kloppen
+  render();
+}
+
+function showAll() {
+  activePlaylistId = null; currentView = 'all';
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.getElementById('allItem').classList.add('active');
+  document.getElementById('viewTitle').textContent = 'Alle Albums';
+  renderPlaylists(); renderPanel(); render();
+}
+function delPlaylist(id) {
+  playlists = playlists.filter(p=>p.id!==id);
+  if (activePlaylistId===id) showAll(); else renderPlaylists();
+  updateStats(); toast('Playlist verwijderd.','');
+}
+
+function renamePlaylist(val) {
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (pl) { pl.name=val; renderPlaylists(); }
+}
+
+function addSelected() {
+  if (!activePlaylistId) { toast('Selecteer eerst een playlist.','err'); return; }
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl) return;
+  let added = 0;
+  for (const id of selectedIds) { if(!pl.ids.includes(id)){pl.ids.push(id);added++;} }
+  selectedIds.clear();
+  renderPlaylists(); renderPanel(); render(); updateStats();
+  toast(`${added} album${added!==1?'s':''} toegevoegd ✓`,'ok');
+}
+
+// ── PANEL ─────────────────────────────────────────────────────────
+function renderPanel() {
+  const hdr   = document.getElementById('panelHdr');
+  const list  = document.getElementById('panelList');
+  const strip = document.getElementById('dzStrip');
+
+  if (!activePlaylistId) {
+    hdr.style.display='none'; strip.style.display='none';
+    list.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><h3>Geen playlist</h3><p>Selecteer of maak een playlist.</p></div>`;
+    return;
+  }
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl) return;
+
+  hdr.style.display='block';
+  document.getElementById('panelName').value = pl.name;
+  document.getElementById('panelMeta').textContent = `${pl.ids.length} album${pl.ids.length!==1?'s':''}`;
+
+  if (!pl.ids.length) {
+    list.innerHTML=`<div class="empty"><div class="empty-icon">➕</div><h3>Leeg</h3><p>Sleep albums vanuit de lijst hiernaartoe, of selecteer albums en klik op <strong>+ Voeg toe</strong>.</p></div>`;
+    strip.style.display='none'; return;
+  }
+
+  list.innerHTML = pl.ids.map((aid,i) => {
+    const a = albums.find(x=>x.id===aid);
+    if (!a) return '';
+    return `<div class="pl-album"
+        draggable="true"
+        data-aid="${aid}"
+        ondragstart="onPanelDragStart(event,'${aid}')"
+        ondragend="onPanelDragEnd(event)"
+        ondragover="onPanelDragOver(event)"
+        ondrop="onPanelDrop(event,'${aid}')">
+      <span class="drag-handle" title="Sleep om te herordenen">⠿</span>
+      <span class="pl-num">${i+1}</span>
+      <div class="pl-info">
+        <div class="pl-title">${esc(a.title)}</div>
+        <div class="pl-artist">${esc(a.artist)}${a.year?' · '+a.year:''}</div>
+      </div>
+      <button class="pl-sp" onclick="openAlbumSpotify('${a.id}')" title="Spotify">▶</button>
+      <button class="pl-rm" onclick="removeFromPlaylist('${aid}')" title="Verwijder">✕</button>
+    </div>`;
+  }).join('');
+  strip.style.display='block';
+}
+
+function removeFromPlaylist(aid) {
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl) return;
+  pl.ids = pl.ids.filter(id=>id!==aid);
+  renderPlaylists(); renderPanel(); render(); updateStats();
+}
+
+// ── SPOTIFY OAUTH (PKCE) ──────────────────────────────────────────
+const SP_CLIENT_ID   = '8de3a59560464b38bd66e786e1e7a5dc';
+const SP_REDIRECT    = 'https://bruindav.github.io/MuziekApp';
+const SP_SCOPES      = 'playlist-modify-public playlist-modify-private ugc-image-upload';
+
+let spToken = null;
+let spUserId = null;
+let spUserName = null;
+
+// PKCE helpers
+async function sha256(plain) {
+  const enc = new TextEncoder().encode(plain);
+  const hash = await crypto.subtle.digest('SHA-256', enc);
+  return hash;
+}
+function base64urlencode(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+async function generatePKCE() {
+  const verifier = base64urlencode(crypto.getRandomValues(new Uint8Array(32)));
+  const challenge = base64urlencode(await sha256(verifier));
+  return { verifier, challenge };
+}
+
+async function spotifyLogin() {
+  const { verifier, challenge } = await generatePKCE();
+  sessionStorage.setItem('sp_verifier', verifier);
+  const params = new URLSearchParams({
+    client_id:             SP_CLIENT_ID,
+    response_type:         'code',
+    redirect_uri:          SP_REDIRECT,
+    scope:                 SP_SCOPES,
+    code_challenge_method: 'S256',
+    code_challenge:        challenge,
+  });
+  window.location = 'https://accounts.spotify.com/authorize?' + params;
+}
+
+async function handleSpotifyCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const code   = params.get('code');
+  const error  = params.get('error');
+  if (error) { toast('Spotify login geannuleerd.', 'err'); return; }
+  if (!code)  return;
+
+  // Clean URL
+  window.history.replaceState({}, '', window.location.pathname);
+
+  const verifier = sessionStorage.getItem('sp_verifier');
+  if (!verifier) { toast('Login sessie verlopen, probeer opnieuw.', 'err'); return; }
+
+  // Exchange code for token
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type:    'authorization_code',
+      code,
+      redirect_uri:  SP_REDIRECT,
+      client_id:     SP_CLIENT_ID,
+      code_verifier: verifier,
+    }),
+  });
+  const data = await res.json();
+  if (data.access_token) {
+    spToken = data.access_token;
+    sessionStorage.removeItem('sp_verifier');
+    await fetchSpotifyUser();
+  } else {
+    toast('Spotify login mislukt: ' + (data.error_description||'onbekend'), 'err');
+  }
+}
+
+async function fetchSpotifyUser() {
+  const res  = await fetch('https://api.spotify.com/v1/me', {
+    headers: { Authorization: 'Bearer ' + spToken }
+  });
+  const user = await res.json();
+  spUserId   = user.id;
+  spUserName = user.display_name || user.id;
+  updateSpotifyLoginUI();
+  toast(`Ingelogd als ${spUserName} ✓`, 'ok');
+}
+
+function updateSpotifyLoginUI() {
+  const area = document.getElementById('spotifyLoginArea');
+  if (spToken && spUserId) {
+    area.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+      <span style="color:var(--spotify)">●</span>
+      <span style="color:var(--text)">${esc(spUserName)}</span>
+      <button onclick="spotifyLogout()" style="padding:4px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;">Uitloggen</button>
+    </div>`;
+  } else {
+    area.innerHTML = `<button onclick="spotifyLogin()" style="padding:8px 16px;background:var(--spotify);border:none;border-radius:20px;color:white;font-family:'DM Sans',sans-serif;font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+      Inloggen met Spotify
+    </button>`;
+  }
+}
+
+function spotifyLogout() {
+  spToken = null; spUserId = null; spUserName = null;
+  updateSpotifyLoginUI();
+  toast('Uitgelogd.', '');
+}
+
+// ── SPOTIFY EXPORT ────────────────────────────────────────────────
+async function exportToSpotify() {
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl || !pl.ids.length) { toast('Playlist is leeg.', 'err'); return; }
+
+  if (!spToken) {
+    showSpStrip('logged-out', '🎵', 'Niet ingelogd', 'Log eerst in met Spotify', () => spotifyLogin(), 'Inloggen');
+    return;
+  }
+
+  // 1. Maak playlist aan op Spotify
+  showSpStrip('working', '⏳', 'Bezig...', `Playlist "${pl.name}" aanmaken`, null, null, true, 5);
+
+  let spPlaylistId;
+  try {
+    const res = await fetch(`https://api.spotify.com/v1/users/${spUserId}/playlists`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + spToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: pl.name, description: `Aangemaakt via Mijn Muziek • ${pl.ids.length} albums`, public: true }),
+    });
+    const data = await res.json();
+    if (!data.id) throw new Error(data.error?.message || 'Aanmaken mislukt');
+    spPlaylistId = data.id;
+  } catch(e) {
+    toast('Playlist aanmaken mislukt: ' + e.message, 'err');
+    return;
+  }
+
+  // 2. Zoek per album de eerste track op Spotify en verzamel URI's
+  const albumList = pl.ids.map(id => albums.find(a=>a.id===id)).filter(Boolean);
+  const trackUris = [];
+  let done = 0;
+
+  for (const album of albumList) {
+    done++;
+    const pct = Math.round((done / albumList.length) * 80) + 5;
+    showSpStrip('working', '⏳', `Zoeken (${done}/${albumList.length})`, `${album.artist} — ${album.title}`, null, null, true, pct);
+
+    try {
+      const q = encodeURIComponent(`album:${album.title} artist:${album.artist}`);
+      const res = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=track&limit=1&market=NL`, {
+        headers: { Authorization: 'Bearer ' + spToken }
+      });
+      const data = await res.json();
+      const track = data.tracks?.items?.[0];
+      if (track) trackUris.push(track.uri);
+    } catch(e) { /* skip */ }
+
+    // Rate limit voorzorg
+    await new Promise(r => setTimeout(r, 120));
+  }
+
+  if (!trackUris.length) {
+    toast('Geen tracks gevonden op Spotify.', 'err');
+    return;
+  }
+
+  // 3. Voeg tracks toe in batches van 100
+  showSpStrip('working', '⏳', 'Tracks toevoegen...', `${trackUris.length} van ${albumList.length} albums gevonden`, null, null, true, 90);
+
+  for (let i = 0; i < trackUris.length; i += 100) {
+    const batch = trackUris.slice(i, i + 100);
+    await fetch(`https://api.spotify.com/v1/playlists/${spPlaylistId}/tracks`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + spToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uris: batch }),
+    });
+  }
+
+  const spUrl = `https://open.spotify.com/playlist/${spPlaylistId}`;
+  showSpStrip('done', '✓', `"${pl.name}" aangemaakt!`, `${trackUris.length}/${albumList.length} tracks toegevoegd`, () => window.open(spUrl, '_blank'), 'Open in Spotify', false);
+  toast(`Spotify playlist aangemaakt met ${trackUris.length} tracks ✓`, 'ok');
+}
+
+function openAlbumSpotify(aid) {
+  const a = albums.find(x=>x.id===aid);
+  if (!a) return;
+  const q = encodeURIComponent(`${a.artist} ${a.title}`);
+  window.open(`https://open.spotify.com/search/${q}`, '_blank');
+}
+
+function showSpStrip(type, icon, title, sub, btnAction, btnLabel, showProgress=false, pct=0) {
+  const strip = document.getElementById('spStrip');
+  const row   = document.getElementById('spRow');
+  strip.style.display = 'block';
+  row.className = 'sp-row ' + type;
+  row.innerHTML = `
+    <div class="sp-icon">${icon}</div>
+    <div class="sp-info">
+      <div class="sp-title">${esc(title)}</div>
+      <div class="sp-sub">${esc(sub)}</div>
+      ${showProgress ? `<div class="sp-progress"><div class="sp-progress-bar" id="spBar" style="width:${pct}%"></div></div>` : ''}
+    </div>
+    ${btnAction ? `<button class="sp-btn sp-btn-green" id="spActionBtn">${esc(btnLabel)}</button>` : ''}
+  `;
+  if (btnAction) document.getElementById('spActionBtn').onclick = btnAction;
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────
+function exportJSON() {
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl) return;
+  const data = { playlist:pl.name, exported:new Date().toISOString().slice(0,10),
+    albums: pl.ids.map(id=>{const a=albums.find(x=>x.id===id); return a?{artiest:a.artist,album:a.title,jaar:a.year,tracks:a.tracks,lengte:a.length,genre:a.genre,label:a.label}:null;}).filter(Boolean)};
+  dl(JSON.stringify(data,null,2),`${pl.name}.json`,'application/json');
+  toast('JSON geëxporteerd ✓','ok');
+}
+
+function exportCSV() {
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl) return;
+  const rows = [['Artist','Title','Release Date','Tracks','Length','Genre','Label']];
+  for (const id of pl.ids) { const a=albums.find(x=>x.id===id); if(a) rows.push([a.artist,a.title,a.year,a.tracks,a.length,a.genre,a.label].map(v=>`"${(v||'').replace(/"/g,'""')}"`)); }
+  dl(rows.map(r=>r.join(',')).join('\n'),`${pl.name}.csv`,'text/csv');
+  toast('CSV geëxporteerd ✓','ok');
+}
+
+function dl(content,name,type) { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
+
+// ── FILTERS ───────────────────────────────────────────────────────
+function updateFilters() {
+  const genres = [...new Set(albums.map(a=>a.genreFirst).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'nl'));
+  const years  = [...new Set(albums.map(a=>a.year).filter(Boolean))].sort((a,b)=>b-a);
+  const gs = document.getElementById('genreFilter'), cv = gs.value;
+  gs.innerHTML = '<option value="">Alle genres</option>' + genres.map(g=>`<option value="${esc(g)}" ${g===cv?'selected':''}>${esc(g)}</option>`).join('');
+  const ys = document.getElementById('yearFilter'), cy = ys.value;
+  ys.innerHTML = '<option value="">Alle jaren</option>' + years.map(y=>`<option value="${y}" ${y===cy?'selected':''}>${y}</option>`).join('');
+}
+
+function updateStats() {
+  document.getElementById('statAlbums').innerHTML = `Albums: <strong>${albums.length}</strong>`;
+  document.getElementById('statPlaylists').innerHTML = `Playlists: <strong>${playlists.length}</strong>`;
+  document.getElementById('allCount').textContent = `${albums.length} albums`;
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────
+function openModal() { document.getElementById('modalInput').value=''; document.getElementById('overlay').classList.add('open'); setTimeout(()=>document.getElementById('modalInput').focus(),100); }
+function closeModal() { document.getElementById('overlay').classList.remove('open'); }
+function confirmModal() { const n=document.getElementById('modalInput').value.trim(); if(n){createPlaylist(n);closeModal();} }
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let toastT;
+function toast(msg,type) {
+  const el=document.getElementById('toast');
+  el.textContent=(type==='ok'?'✓ ':type==='err'?'⚠ ':'')+msg;
+  el.className=`toast show ${type}`;
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+// ── DRAG & DROP ───────────────────────────────────────────────────
+// 1. Tabel → panel: album aan playlist toevoegen door te slepen
+let dragAlbumId = null;
+
+function onTableDragStart(e, aid) {
+  dragAlbumId = aid;
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', aid);
+  e.currentTarget.classList.add('dragging');
+  if (activePlaylistId) {
+    document.getElementById('panelList').classList.add('drop-target');
+  } else {
+    toast('Selecteer eerst een playlist om naartoe te slepen.', 'err');
+  }
+}
+
+function onTableDragEnd(e) {
+  dragAlbumId = null;
+  e.currentTarget.classList.remove('dragging');
+  document.getElementById('panelList').classList.remove('drop-target');
+}
+
+// Panel drop-zone voor tabelrijen
+document.getElementById('panelList').addEventListener('dragover', e => {
+  if (!dragAlbumId || !activePlaylistId) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+});
+
+document.getElementById('panelList').addEventListener('drop', e => {
+  e.preventDefault();
+  document.getElementById('panelList').classList.remove('drop-target');
+  if (!dragAlbumId || !activePlaylistId) return;
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl) return;
+  if (!pl.ids.includes(dragAlbumId)) {
+    pl.ids.push(dragAlbumId);
+    renderPlaylists(); renderPanel(); render(); updateStats();
+    const a = albums.find(x=>x.id===dragAlbumId);
+    toast(`"${a ? a.title : 'Album'}" toegevoegd ✓`, 'ok');
+  } else {
+    toast('Staat al in de playlist.', '');
+  }
+  dragAlbumId = null;
+});
+
+// 2. Binnen panel herordenen via slepen
+let panelDragId = null;
+
+function onPanelDragStart(e, aid) {
+  // Stop bubbling zodat de panelList drop-handler niet triggert
+  e.stopPropagation();
+  panelDragId = aid;
+  dragAlbumId = null; // zorg dat tabel-drop niet mee triggert
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', aid);
+  setTimeout(() => e.currentTarget.classList.add('dragging'), 0);
+}
+
+function onPanelDragEnd(e) {
+  panelDragId = null;
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.pl-album.drag-over').forEach(el=>el.classList.remove('drag-over'));
+}
+
+function onPanelDragOver(e) {
+  if (!panelDragId) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.pl-album.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if (e.currentTarget.dataset.aid !== panelDragId) e.currentTarget.classList.add('drag-over');
+}
+
+function onPanelDrop(e, targetAid) {
+  e.preventDefault();
+  e.stopPropagation();
+  document.querySelectorAll('.pl-album.drag-over').forEach(el=>el.classList.remove('drag-over'));
+  if (!panelDragId || panelDragId === targetAid) return;
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl) return;
+  const fromIdx = pl.ids.indexOf(panelDragId);
+  const toIdx   = pl.ids.indexOf(targetAid);
+  if (fromIdx < 0 || toIdx < 0) return;
+  pl.ids.splice(fromIdx, 1);
+  pl.ids.splice(toIdx, 0, panelDragId);
+  panelDragId = null;
+  renderPanel();
+}
+
+updateStats();
+// Spotify OAuth callback afhandelen na redirect
+handleSpotifyCallback();
+</script>
+</body>
+</html>
 
