@@ -1,4 +1,4 @@
-<!-- MuziekApp V8 | index.html | Laatste wijziging: V8 - Deezer zoeken terug, Spotify uitgeschakeld (vereist Premium), beide strips in panel -->
+<!-- MuziekApp V9 | index.html | Laatste wijziging: V9 - Fix scrollen hele pagina, sidebar en panel fixed -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -21,7 +21,8 @@
     --green: #4ecca3;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; display: flex; flex-direction: column; }
 
   header { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; flex-shrink: 0; }
   .logo { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 3px; background: linear-gradient(135deg, var(--accent), var(--deezer)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
