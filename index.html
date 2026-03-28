@@ -1,4 +1,4 @@
-<!-- MuziekApp V41 | index.html | Laatste wijziging: V41 - Beheer tab als eigen fixed overlay pagina, scroll werkt altijd ongeacht grid/flex -->
+<!-- MuziekApp V42 | index.html | Laatste wijziging: V42 - Context menu bij klikken op album (mobiel), album toevoegen card standaard dicht -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -153,6 +153,40 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 }
 @media (min-width:769px) {
   .alpha-index { display:none !important; }
+}
+
+/* ── CONTEXT MENU (mobiel) ── */
+.ctx-menu {
+  position:fixed; z-index:400;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; overflow:hidden; min-width:210px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  animation:ctx-in .15s ease;
+}
+@keyframes ctx-in { from { opacity:0; transform:scale(.95); } to { opacity:1; transform:scale(1); } }
+@keyframes ctx-up  { from { transform:translateY(100%); } to { transform:translateY(0); } }
+.ctx-item {
+  display:flex; align-items:center; gap:12px;
+  padding:13px 16px; font-size:14px; cursor:pointer;
+  border-bottom:1px solid var(--border); transition:background .1s;
+}
+.ctx-item:last-child { border-bottom:none; }
+.ctx-item:hover, .ctx-item:active { background:var(--surface2); }
+.ctx-item.danger { color:var(--accent); }
+.ctx-icon { font-size:16px; width:22px; text-align:center; }
+.ctx-overlay { position:fixed; inset:0; z-index:399; }
+
+@media (max-width:768px) {
+  .ctx-menu {
+    left:0 !important; right:0 !important; bottom:50px !important;
+    top:auto !important; width:100% !important; min-width:unset;
+    border-radius:16px 16px 0 0; border-bottom:none;
+    animation:ctx-up .2s ease;
+  }
+  .ctx-item { padding:15px 20px; font-size:15px; }
+  .row-actions { display:none !important; }
+  .album-add-btn { display:none !important; }
+  tbody tr { cursor:pointer; user-select:none; }
 }
 
 .pl-drawer-overlay {
@@ -956,6 +990,10 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   </div>
 </div>
 
+<!-- Context menu (mobiel) -->
+<div class="ctx-overlay" id="ctxOverlay" style="display:none" onclick="closeCtxMenu()"></div>
+<div class="ctx-menu" id="ctxMenu" style="display:none"></div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -1308,7 +1346,7 @@ window.switchTab = function(tab) {
     // Open de eerste card automatisch als die nog dicht is
     const firstCard = document.getElementById('card-toevoegen');
     if (firstCard && !firstCard.classList.contains('open')) {
-      firstCard.classList.add('open');
+      // Standaard dicht laten
     }
   }
 
@@ -1423,7 +1461,11 @@ window.render = function() {
       <tr class="${selectedIds.has(a.id)?'selected':''} ${expandedAlbumId===a.id?'expanded':''}"
           data-id="${a.id}" draggable="true"
           ondragstart="onTableDragStart(event,'${a.id}')"
-          ondragend="onTableDragEnd(event)">
+          ondragend="onTableDragEnd(event)"
+          ontouchstart="this._lpT=setTimeout(()=>openCtxMenu('${a.id}',event),500)"
+          ontouchend="clearTimeout(this._lpT)"
+          ontouchmove="clearTimeout(this._lpT)"
+          onclick="if(window.innerWidth<=768){openCtxMenu('${a.id}',event)}">
         <td onclick="toggleExpand('${a.id}',event)" style="cursor:pointer;text-align:center">
           <span class="expand-arrow">▶</span>
         </td>
@@ -1723,6 +1765,58 @@ window.scrollToLetter = function(letter) {
   });
 };
 
+
+// ── CONTEXT MENU (mobiel) ────────────────────────────────────────
+let ctxAlbumId = null;
+
+window.openCtxMenu = function(albumId, event) {
+  if (window.innerWidth > 768) return;
+  event.preventDefault();
+  event.stopPropagation();
+  ctxAlbumId = albumId;
+  const a = albums.find(x => x.id === albumId);
+  if (!a) return;
+  const inPl = activePlaylistId &&
+    (playlists.find(p=>p.id===activePlaylistId)?.ids||[]).includes(albumId);
+  const menu = document.getElementById('ctxMenu');
+  menu.innerHTML =
+    '<div style="padding:12px 16px 8px;border-bottom:1px solid var(--border)">' +
+      '<div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(a.artist) + '</div>' +
+      '<div style="font-size:11px;color:var(--muted)">' + esc(a.title) + (a.year?' · '+a.year:'') + '</div>' +
+    '</div>' +
+    '<div class="ctx-item" onclick="closeCtxMenu();openDetailModal(\'' + albumId + '\')"><span class="ctx-icon">ℹ</span> Details</div>' +
+    '<div class="ctx-item" onclick="closeCtxMenu();openEditModal(\'' + albumId + '\')"><span class="ctx-icon">✏</span> Wijzigen</div>' +
+    '<div class="ctx-item" onclick="closeCtxMenu();ctxAddToPlaylist(\'' + albumId + '\')"><span class="ctx-icon">' + (inPl?'✓':'+') + '</span> ' + (inPl?'Al in playlist':'Toevoegen aan playlist') + '</div>' +
+    '<div class="ctx-item danger" onclick="closeCtxMenu();confirmDeleteAlbum(\'' + albumId + '\')"><span class="ctx-icon">🗑</span> Verwijderen</div>';
+  menu.style.display = 'block';
+  const x = event.touches ? event.changedTouches[0].clientX : event.clientX;
+  const y = event.touches ? event.changedTouches[0].clientY : event.clientY;
+  const mw = 220, mh = 220;
+  menu.style.left = Math.min(x, window.innerWidth  - mw - 10) + 'px';
+  menu.style.top  = Math.min(y, window.innerHeight - mh - 10) + 'px';
+  document.getElementById('ctxOverlay').style.display = 'block';
+};
+
+window.closeCtxMenu = function() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  document.getElementById('ctxOverlay').style.display = 'none';
+  ctxAlbumId = null;
+};
+
+window.ctxAddToPlaylist = function(albumId) {
+  if (!activePlaylistId) { showPlaylistChooser(); ctxAlbumId = albumId; return; }
+  addAlbumFromMode(albumId);
+};
+
+// Long-press helper
+let _lpTimer = null;
+function attachLongPress(el, albumId) {
+  el.addEventListener('touchstart', e => {
+    _lpTimer = setTimeout(() => openCtxMenu(albumId, e), 500);
+  }, {passive:true});
+  el.addEventListener('touchend',  () => clearTimeout(_lpTimer), {passive:true});
+  el.addEventListener('touchmove', () => clearTimeout(_lpTimer), {passive:true});
+}
 
 window.openPlDrawer = function() {
   renderPlDrawer();
