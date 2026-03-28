@@ -1,4 +1,4 @@
-<!-- MuziekApp V13 | index.html | Laatste wijziging: V13 - Favicon toegevoegd (fix 404) -->
+<!-- MuziekApp V14 | index.html | Laatste wijziging: V14 - Fix panelHdr niet zichtbaar, fix track toevoegen via data-attributen -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -566,7 +566,11 @@ function renderTrackList(album) {
       <span class="track-title">${esc(t.title)}</span>
       <span class="track-dur">${t.dur||''}</span>
       <button class="track-add"
-        onclick="addTrackToPlaylist('${album.id}','${tid}',${JSON.stringify(t.title)},${JSON.stringify(album.artist)})"
+        data-album-id="${album.id}"
+        data-tid="${tid}"
+        data-title="${esc(t.title)}"
+        data-artist="${esc(album.artist)}"
+        onclick="addTrackToPlaylist(this.dataset.albumId,this.dataset.tid,this.dataset.title,this.dataset.artist)"
         ${inPl?'disabled title="Al in playlist"':'title="Toevoegen aan playlist"'}>
         ${inPl?'✓':'+ Voeg toe'}
       </button>
@@ -787,7 +791,6 @@ function addSelected() {
 function renderPanel() {
   const hdr   = document.getElementById('panelHdr');
   const list  = document.getElementById('panelList');
-  const strip = document.getElementById('spStrip');
 
   if (!activePlaylistId) {
     hdr.style.display='none';
@@ -798,6 +801,10 @@ function renderPanel() {
   }
   const pl = playlists.find(p=>p.id===activePlaylistId);
   if (!pl) return;
+
+  // Altijd header tonen als playlist actief is
+  hdr.style.display='block';
+  document.getElementById('panelName').value = pl.name;
 
   // Tel items voor de meta
   const nTracks = pl.ids.filter(id=>id.includes('_t')).length;
@@ -819,13 +826,15 @@ function renderPanel() {
     if (isTrack) {
       const t = trackItems[aid];
       if (!t) return '';
+      // Gebruik data-attributen voor veilig doorgeven van strings met speciale tekens
       return `<div class="pl-album">
         <span class="pl-num">${i+1}</span>
         <div class="pl-info">
           <div class="pl-title" style="font-size:12px">🎵 ${esc(t.title)}</div>
           <div class="pl-artist">${esc(t.artist)}${t.album?' · '+esc(t.album):''}${t.year?' · '+t.year:''}</div>
         </div>
-        <button class="pl-dz" onclick="openTrackDeezer(${JSON.stringify(t.title)},${JSON.stringify(t.artist)})" title="Deezer">🎧</button>
+        <button class="pl-dz" data-title="${esc(t.title)}" data-artist="${esc(t.artist)}"
+          onclick="openTrackDeezer(this.dataset.title,this.dataset.artist)" title="Deezer">🎧</button>
         <button class="pl-rm" onclick="removeFromPlaylist('${aid}')" title="Verwijder">✕</button>
       </div>`;
     }
