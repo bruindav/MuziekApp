@@ -1,4 +1,4 @@
-<!-- MuziekApp V26 | index.html | Laatste wijziging: V26 - Household systeem (gedeelde database), uitnodigingen per email, toegangsbeheer voor eigenaar -->
+<!-- MuziekApp V27 | index.html | Laatste wijziging: V27 - CSS herstel: overlay/modal/toast/form-grid desktop definities terug -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -208,6 +208,63 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 .btn-primary { padding:9px 18px; background:var(--accent); border:none; border-radius:8px; color:white; font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; cursor:pointer; transition:opacity .15s; }
 .btn-primary:hover { opacity:.85; }
 .btn-secondary { padding:9px 18px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; }
+
+/* ── OVERLAY & MODAL ── */
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.75); display:flex; align-items:center; justify-content:center; z-index:300; opacity:0; pointer-events:none; transition:opacity .2s; }
+.overlay.open { opacity:1; pointer-events:all; }
+.modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:0; width:520px; max-width:95vw; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; transform:translateY(12px); transition:transform .2s; }
+.overlay.open .modal { transform:translateY(0); }
+.modal-hdr { padding:18px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.modal-hdr h3 { font-size:16px; font-weight:600; }
+.modal-close { background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:4px 8px; border-radius:6px; }
+.modal-close:hover { color:var(--text); background:var(--surface2); }
+.modal-body { padding:20px; overflow-y:auto; flex:1; }
+.modal-foot { padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; flex-shrink:0; }
+.modal-sm { width:420px; }
+.modal-confirm { width:340px; text-align:center; }
+.modal-confirm p { font-size:14px; color:var(--muted); margin-bottom:16px; }
+.modal-cover-placeholder { width:100%; height:180px; border-radius:8px; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:48px; margin-bottom:16px; }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.detail-item label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:3px; }
+.detail-item span { font-size:13px; }
+.detail-item.full { grid-column:1/-1; }
+
+/* ── IMPORT ── */
+.import-zone { border:2px dashed var(--border); border-radius:10px; padding:24px; text-align:center; cursor:pointer; transition:all .2s; }
+.import-zone:hover { border-color:var(--accent); background:rgba(255,77,109,.03); }
+.import-zone-icon { font-size:28px; margin-bottom:6px; }
+.import-zone p { font-size:13px; color:var(--muted); }
+.import-progress { margin-top:10px; font-size:12px; color:var(--muted); }
+.import-progress-bar-wrap { height:4px; background:var(--border); border-radius:2px; margin-top:6px; overflow:hidden; }
+.import-progress-bar { height:100%; background:var(--accent); border-radius:2px; width:0; transition:width .3s; }
+
+/* ── SCAN BTN ── */
+.btn-scan { width:100%; padding:12px; background:linear-gradient(135deg,#00b4d8,#0077b6); border:none; border-radius:10px; color:white; font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:opacity .15s; }
+.btn-scan:hover { opacity:.85; }
+
+/* ── TAG CHIPS ── */
+.tag-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; font-size:12px; color:var(--text); }
+.tag-chip button { background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; padding:0 0 0 2px; }
+.tag-chip button:hover { color:var(--accent); }
+
+/* ── TOAST ── */
+.toast { position:fixed; bottom:20px; right:20px; background:var(--surface2); border:1px solid var(--border); border-radius:9px; padding:10px 15px; font-size:13px; color:var(--text); z-index:400; transform:translateY(50px); opacity:0; transition:all .25s; }
+.toast.show { transform:translateY(0); opacity:1; }
+.toast.ok { border-left:3px solid var(--green); }
+.toast.err { border-left:3px solid var(--accent); }
+
+/* ── LOADING ── */
+.fb-loading { display:flex; align-items:center; justify-content:center; height:100%; gap:10px; color:var(--muted); font-size:14px; }
+
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+/* Drag & drop */
+tbody tr[draggable] { cursor:grab; }
+tbody tr.dragging { opacity:.4; }
+tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
+.panel-list.drop-target { background:rgba(255,77,109,.04); border:1px dashed var(--accent); border-radius:10px; }
 </style>
 <body>
 
