@@ -1,4 +1,4 @@
-<!-- MuziekApp V19 | index.html | Laatste wijziging: V19 - Barcode scanner, device types, opberglocaties (storage labels) -->
+<!-- MuziekApp V20 | index.html | Laatste wijziging: V20 - Uitgebreide CSV import (barcode, format, location, herkenningsnr, componist, producer, muzikant), alle velden in formulieren en detail modal -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -448,6 +448,12 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
         <div class="form-group"><label class="form-label">Platenlabel / Uitgever</label><input class="form-input" id="newLabel" placeholder="Polydor"></div>
         <div class="form-group"><label class="form-label">Tracks</label><input class="form-input" id="newTracks" placeholder="19" type="number"></div>
         <div class="form-group"><label class="form-label">Lengte</label><input class="form-input" id="newLength" placeholder="1:14:31"></div>
+        <div class="form-group"><label class="form-label">Barcode</label><input class="form-input" id="newBarcode" placeholder="042284364225"></div>
+        <div class="form-group"><label class="form-label">Herkenningsnummer</label><input class="form-input" id="newHerkenning" placeholder="219" type="number"></div>
+        <div class="form-group"><label class="form-label">Origineel jaar</label><input class="form-input" id="newOrigYear" placeholder="1981"></div>
+        <div class="form-group"><label class="form-label">Componist</label><input class="form-input" id="newComposer" placeholder=""></div>
+        <div class="form-group"><label class="form-label">Producer</label><input class="form-input" id="newProducer" placeholder=""></div>
+        <div class="form-group"><label class="form-label">Muzikant</label><input class="form-input" id="newMusician" placeholder=""></div>
 
         <!-- Device type -->
         <div class="form-group">
@@ -577,6 +583,12 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
         <div class="form-group"><label class="form-label">Label</label><input class="form-input" id="editLabel"></div>
         <div class="form-group"><label class="form-label">Tracks</label><input class="form-input" id="editTracks" type="number"></div>
         <div class="form-group full"><label class="form-label">Lengte</label><input class="form-input" id="editLength"></div>
+        <div class="form-group"><label class="form-label">Barcode</label><input class="form-input" id="editBarcode"></div>
+        <div class="form-group"><label class="form-label">Herkenningsnummer</label><input class="form-input" id="editHerkenning" type="number"></div>
+        <div class="form-group"><label class="form-label">Origineel jaar</label><input class="form-input" id="editOrigYear"></div>
+        <div class="form-group"><label class="form-label">Componist</label><input class="form-input" id="editComposer"></div>
+        <div class="form-group"><label class="form-label">Producer</label><input class="form-input" id="editProducer"></div>
+        <div class="form-group full"><label class="form-label">Muzikant</label><input class="form-input" id="editMusician"></div>
         <div class="form-group">
           <label class="form-label">Type drager</label>
           <select class="form-input" id="editDeviceType"></select>
@@ -1214,6 +1226,12 @@ window.saveNewAlbum = async function() {
     label:       document.getElementById('newLabel').value.trim(),
     tracks:      document.getElementById('newTracks').value.trim(),
     length:      document.getElementById('newLength').value.trim(),
+    barcode:     document.getElementById('newBarcode').value.trim(),
+    herkenning:  document.getElementById('newHerkenning').value.trim(),
+    origYear:    document.getElementById('newOrigYear').value.trim(),
+    composer:    document.getElementById('newComposer').value.trim(),
+    producer:    document.getElementById('newProducer').value.trim(),
+    musician:    document.getElementById('newMusician').value.trim(),
     deviceType:  document.getElementById('newDeviceType').value,
     storageLabel,
     addedAt:     serverTimestamp()
@@ -1225,7 +1243,7 @@ window.saveNewAlbum = async function() {
     await addDoc(collection(db,'storageLabels'), {name: storageLabel});
   }
 
-  ['newArtist','newTitle','newYear','newGenre','newLabel','newTracks','newLength'].forEach(id => document.getElementById(id).value='');
+  ['newArtist','newTitle','newYear','newGenre','newLabel','newTracks','newLength','newBarcode','newHerkenning','newOrigYear','newComposer','newProducer','newMusician'].forEach(id => document.getElementById(id).value='');
   document.getElementById('newDeviceType').value  = '';
   document.getElementById('newStorageLabel').value = '';
   document.getElementById('scanFeedback').textContent = '';
@@ -1243,7 +1261,13 @@ window.openEditModal = function(id) {
   document.getElementById('editGenre').value   = a.genre||'';
   document.getElementById('editLabel').value   = a.label||'';
   document.getElementById('editTracks').value  = a.tracks||'';
-  document.getElementById('editLength').value  = a.length||'';
+  document.getElementById('editLength').value    = a.length||'';
+  document.getElementById('editBarcode').value    = a.barcode||'';
+  document.getElementById('editHerkenning').value = a.herkenning||'';
+  document.getElementById('editOrigYear').value   = a.origYear||'';
+  document.getElementById('editComposer').value   = a.composer||'';
+  document.getElementById('editProducer').value   = a.producer||'';
+  document.getElementById('editMusician').value   = a.musician||'';
   populateDeviceSelects();
   populateStorageSelects();
   setTimeout(() => {
@@ -1271,6 +1295,12 @@ window.saveEditAlbum = async function() {
     label:        document.getElementById('editLabel').value.trim(),
     tracks:       document.getElementById('editTracks').value.trim(),
     length:       document.getElementById('editLength').value.trim(),
+    barcode:      document.getElementById('editBarcode').value.trim(),
+    herkenning:   document.getElementById('editHerkenning').value.trim(),
+    origYear:     document.getElementById('editOrigYear').value.trim(),
+    composer:     document.getElementById('editComposer').value.trim(),
+    producer:     document.getElementById('editProducer').value.trim(),
+    musician:     document.getElementById('editMusician').value.trim(),
     deviceType:   document.getElementById('editDeviceType').value,
     storageLabel,
   });
@@ -1325,11 +1355,21 @@ window.openDetailModal = async function(id) {
       <div class="detail-item"><label>Artiest</label><span>${esc(a.artist)}</span></div>
       <div class="detail-item"><label>Album</label><span>${esc(a.title)}</span></div>
       <div class="detail-item"><label>Jaar</label><span>${a.year||'—'}</span></div>
+      <div class="detail-item"><label>Orig. jaar</label><span>${a.origYear||'—'}</span></div>
       <div class="detail-item"><label>Tracks</label><span>${a.tracks||'—'}</span></div>
       <div class="detail-item"><label>Lengte</label><span>${a.length||'—'}</span></div>
       <div class="detail-item"><label>Label</label><span>${esc(a.label)||'—'}</span></div>
+      <div class="detail-item"><label>Type drager</label><span>${esc(a.deviceType)||'—'}</span></div>
+      <div class="detail-item"><label>Opberglocatie</label><span>${esc(a.storageLabel)||'—'}</span></div>
+      <div class="detail-item"><label>Herkenningsnr.</label><span>${a.herkenning||'—'}</span></div>
+      <div class="detail-item"><label>Barcode</label><span>${esc(a.barcode)||'—'}</span></div>
       <div class="detail-item full"><label>Genre</label><span>${esc(a.genre)||'—'}</span></div>
     </div>
+    ${a.composer||a.producer||a.musician ? '<div class="detail-grid" style="margin-top:0">'+
+      (a.composer?'<div class="detail-item full"><label>Componist</label><span>'+esc(a.composer)+'</span></div>':'')+
+      (a.producer?'<div class="detail-item full"><label>Producer</label><span>'+esc(a.producer)+'</span></div>':'')+
+      (a.musician?'<div class="detail-item full"><label>Muzikant</label><span>'+esc(a.musician)+'</span></div>':'')+
+      '</div>' : ''}
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn-secondary" style="flex:1" onclick="openAlbumDeezer('${a.id}')">🎧 Openen in Deezer</button>
     </div>`;
@@ -1351,7 +1391,7 @@ async function parseAndImportCSV(text) {
   prog.style.display = 'block';
 
   const lines = text.trim().split(/\r?\n/);
-  const KNOWN = ['artist','artiest','title','titel','album','genre','tracks','length'];
+  const KNOWN = ['artist','artiest','title','titel','album','genre','tracks','length','barcode','format','location','quantity'];
   let headerIdx=-1, delim=',';
   for (let i=0;i<Math.min(lines.length,10);i++) {
     const tc = lines[i].split(',').map(h=>h.toLowerCase().replace(/"/g,'').trim());
@@ -1364,32 +1404,74 @@ async function parseAndImportCSV(text) {
 
   const headers = splitRow(lines[headerIdx],delim).map(h=>h.toLowerCase().trim());
   const idx = {
-    artist: findCol(headers,['artist','artiest']),
-    title:  findCol(headers,['title','titel']),
-    year:   findCol(headers,['release date','release','jaar','year']),
-    tracks: findCol(headers,['tracks','nummers']),
-    length: findCol(headers,['length','lengte','duration']),
-    genre:  findCol(headers,['genre']),
-    label:  findCol(headers,['label']),
+    artist:       findCol(headers,['artist','artiest']),
+    title:        findCol(headers,['title','titel']),
+    year:         findCol(headers,['release date','release','jaar','year']),
+    tracks:       findCol(headers,['tracks','nummers']),
+    length:       findCol(headers,['length','lengte','duration']),
+    genre:        findCol(headers,['genre']),
+    label:        findCol(headers,['label']),
+    barcode:      findCol(headers,['barcode','ean']),
+    deviceType:   findCol(headers,['format','drager','type']),
+    storageLabel: findCol(headers,['location','locatie','opberglocatie']),
+    herkenning:   findCol(headers,['quantity','herkenningsnummer','nummer']),
+    origYear:     findCol(headers,['original release year','original year','orig year']),
+    composer:     findCol(headers,['composer','componist']),
+    orchestra:    findCol(headers,['orchestra','orkest']),
+    musician:     findCol(headers,['musician','muzikant']),
+    producer:     findCol(headers,['producer']),
+    songwriter:   findCol(headers,['songwriter']),
   };
+
   const get = (row,key) => { const i=idx[key]; if(i<0||i>=row.length) return ''; return row[i].trim().replace(/^"|"$/g,''); };
   const firstGenre = g => g ? g.split(/[|;]/)[0].trim() : '';
   const parseYear  = s => { const m=(s||'').match(/\b(19|20)\d{2}\b/); return m?m[0]:''; };
 
-  // Collect new albums
+  // Collect storage labels for auto-create
+  const newStorageLabels = new Set();
+
   const rows = [];
   for (let i=headerIdx+1;i<lines.length;i++) {
     const row = splitRow(lines[i],delim);
     const artist = get(row,'artist'), title = get(row,'title');
     if (!artist && !title) continue;
-    rows.push({ artist:artist||'(onbekend)', title:title||'(onbekend)', year:parseYear(get(row,'year')),
-      tracks:get(row,'tracks'), length:get(row,'length'), genre:get(row,'genre'),
-      genreFirst:firstGenre(get(row,'genre')), label:get(row,'label'), addedAt:serverTimestamp() });
+    const storageLabel = get(row,'storageLabel');
+    if (storageLabel) newStorageLabels.add(storageLabel);
+    rows.push({
+      artist:       artist||'(onbekend)',
+      title:        title||'(onbekend)',
+      year:         parseYear(get(row,'year')),
+      tracks:       get(row,'tracks'),
+      length:       get(row,'length'),
+      genre:        get(row,'genre'),
+      genreFirst:   firstGenre(get(row,'genre')),
+      label:        get(row,'label'),
+      barcode:      get(row,'barcode'),
+      deviceType:   get(row,'deviceType'),
+      storageLabel,
+      herkenning:   get(row,'herkenning'),
+      origYear:     get(row,'origYear'),
+      composer:     get(row,'composer'),
+      orchestra:    get(row,'orchestra'),
+      musician:     get(row,'musician'),
+      producer:     get(row,'producer'),
+      songwriter:   get(row,'songwriter'),
+      addedAt:      serverTimestamp()
+    });
   }
 
   if (!rows.length) { toast('Geen albums gevonden in CSV.','err'); prog.style.display='none'; return; }
 
-  // Batch write to Firestore (500 per batch)
+  // Auto-create storage labels
+  const existingLabels = new Set(storageLabels.map(l=>l.name));
+  for (const name of newStorageLabels) {
+    if (!existingLabels.has(name)) {
+      await addDoc(collection(db,'storageLabels'), {name});
+      existingLabels.add(name);
+    }
+  }
+
+  // Batch write to Firestore
   let added = 0;
   const BATCH_SIZE = 400;
   for (let i=0;i<rows.length;i+=BATCH_SIZE) {
