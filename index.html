@@ -1,4 +1,4 @@
-<!-- MuziekApp V40 | index.html | Laatste wijziging: V40 - JS forceert hoogte mainWrapper via cssText, omzeilt CSS cascade probleem -->
+<!-- MuziekApp V41 | index.html | Laatste wijziging: V41 - Beheer tab als eigen fixed overlay pagina, scroll werkt altijd ongeacht grid/flex -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -631,9 +631,53 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <div class="alpha-index" id="alphaIndex"></div>
   </div>
 
-  <!-- ── BEHEER VIEW ── -->
-  <div class="beheer-view" id="beheerView">
 
+</div><!-- /mainArea -->
+
+<!-- RIGHT PANEL -->
+<aside class="panel" id="rightPanel">
+  <!-- Mobiele playlist tab balk -->
+  <div class="pl-tab-bar" id="plTabBar">
+    <div style="flex:1;min-width:0">
+      <div class="pl-tab-bar-name" id="plTabBarName">Geen playlist</div>
+      <div class="pl-tab-bar-count" id="plTabBarCount">Kies een playlist</div>
+    </div>
+    <button class="pl-tab-bar-btn" onclick="openPlDrawer()">☰ Wissel</button>
+    <button class="pl-tab-bar-btn" onclick="openNewPlaylistModal()" style="border-color:var(--accent);color:var(--accent)">+ Nieuw</button>
+  </div>
+  <div class="panel-hdr" id="panelHdr" style="display:none">
+    <input class="panel-name-input" id="panelName" type="text" oninput="renamePlaylist(this.value)">
+    <div class="panel-meta" id="panelMeta">0 items</div>
+    <div class="panel-btns">
+      <button class="pbtn pbtn-deezer" onclick="openPlaylistDeezer()">🎧 Deezer</button>
+      <button class="pbtn pbtn-spotify" title="Vereist Spotify Premium">♪ Spotify</button>
+      <button class="pbtn pbtn-json" onclick="exportJSON()">↓ JSON</button>
+      <button class="pbtn pbtn-csv" onclick="exportPlaylistCSV()">↓ CSV</button>
+    </div>
+  </div>
+  <div class="panel-list" id="panelList">
+    <div class="empty">
+      <div class="empty-icon">📋</div>
+      <h3>Geen playlist</h3>
+      <p>Selecteer of maak een playlist.</p>
+    </div>
+  </div>
+  <div class="dz-strip" id="dzStrip" style="display:none">
+    <div class="dz-label">Nu openen in Deezer</div>
+    <div class="dz-row" id="dzRow"></div>
+  </div>
+</aside>
+
+</div><!-- /flex wrapper -->
+</div><!-- /mainWrapper -->
+
+<!-- ── BEHEER PAGINA (buiten grid, eigen scroll) ── -->
+<div id="beheerPage" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; overflow-y:auto; -webkit-overflow-scrolling:touch; background:var(--bg); z-index:50; padding-bottom:60px;">
+  <!-- Beheer header -->
+  <div style="padding:14px 20px 10px; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:1;">
+    <div style="font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; color:var(--text);">⚙ Beheer</div>
+  </div>
+  <div style="padding:16px; display:flex; flex-direction:column; gap:14px;">
     <!-- Barcode scanner + Album toevoegen -->
     <div class="beheer-card" id="card-toevoegen">
       <div class="beheer-card-header" onclick="toggleCard('card-toevoegen')">
@@ -771,46 +815,9 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       </div>
     </div>
 
+  
   </div>
-
-</div><!-- /mainArea -->
-
-<!-- RIGHT PANEL -->
-<aside class="panel" id="rightPanel">
-  <!-- Mobiele playlist tab balk -->
-  <div class="pl-tab-bar" id="plTabBar">
-    <div style="flex:1;min-width:0">
-      <div class="pl-tab-bar-name" id="plTabBarName">Geen playlist</div>
-      <div class="pl-tab-bar-count" id="plTabBarCount">Kies een playlist</div>
-    </div>
-    <button class="pl-tab-bar-btn" onclick="openPlDrawer()">☰ Wissel</button>
-    <button class="pl-tab-bar-btn" onclick="openNewPlaylistModal()" style="border-color:var(--accent);color:var(--accent)">+ Nieuw</button>
-  </div>
-  <div class="panel-hdr" id="panelHdr" style="display:none">
-    <input class="panel-name-input" id="panelName" type="text" oninput="renamePlaylist(this.value)">
-    <div class="panel-meta" id="panelMeta">0 items</div>
-    <div class="panel-btns">
-      <button class="pbtn pbtn-deezer" onclick="openPlaylistDeezer()">🎧 Deezer</button>
-      <button class="pbtn pbtn-spotify" title="Vereist Spotify Premium">♪ Spotify</button>
-      <button class="pbtn pbtn-json" onclick="exportJSON()">↓ JSON</button>
-      <button class="pbtn pbtn-csv" onclick="exportPlaylistCSV()">↓ CSV</button>
-    </div>
-  </div>
-  <div class="panel-list" id="panelList">
-    <div class="empty">
-      <div class="empty-icon">📋</div>
-      <h3>Geen playlist</h3>
-      <p>Selecteer of maak een playlist.</p>
-    </div>
-  </div>
-  <div class="dz-strip" id="dzStrip" style="display:none">
-    <div class="dz-label">Nu openen in Deezer</div>
-    <div class="dz-row" id="dzRow"></div>
-  </div>
-</aside>
-
-</div><!-- /flex wrapper -->
-</div><!-- /mainWrapper -->
+</div>
 
 <!-- FAB: open playlist panel op mobiel -->
 <button class="fab" id="fabBtn" onclick="toggleMobilePanel()" style="display:none" title="Playlist">📋</button>
@@ -1280,14 +1287,24 @@ window.switchTab = function(tab) {
   }
 
   const libView    = document.getElementById('libView');
-  const beheerView = document.getElementById('beheerView');
+  const beheerPage = document.getElementById('beheerPage');
 
   if (tab === 'bibliotheek' || tab === 'playlists') {
     libView.style.display    = 'flex';
-    beheerView.classList.remove('active');
+    if (beheerPage) beheerPage.style.display = 'none';
   } else if (tab === 'beheer') {
     libView.style.display    = 'none';
-    beheerView.classList.add('active');
+    if (beheerPage) {
+      // Positie aanpassen voor header + tabs
+      const header = document.querySelector('header');
+      const tabsEl = document.querySelector('.tabs');
+      const isMobile = window.innerWidth <= 768;
+      const topOffset = header ? header.offsetHeight : 57;
+      const bottomOffset = isMobile ? 50 : (tabsEl ? tabsEl.offsetHeight : 0);
+      beheerPage.style.top    = topOffset + 'px';
+      beheerPage.style.bottom = bottomOffset + 'px';
+      beheerPage.style.display = 'block';
+    }
     // Open de eerste card automatisch als die nog dicht is
     const firstCard = document.getElementById('card-toevoegen');
     if (firstCard && !firstCard.classList.contains('open')) {
