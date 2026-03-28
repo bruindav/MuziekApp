@@ -1,4 +1,4 @@
-<!-- MuziekApp V17 | index.html | Laatste wijziging: V17 - Firebase Firestore, Beheer tab, Album modal, cover foto -->
+<!-- MuziekApp V18 | index.html | Laatste wijziging: V18 - Mobiele layout: bottom nav, slide-in sidebar/panel, FAB, responsive tabel -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -225,6 +225,125 @@ tbody tr[draggable] { cursor:grab; }
 tbody tr.dragging { opacity:.4; }
 tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
 .panel-list.drop-target { background:rgba(255,77,109,.04); border:1px dashed var(--accent); border-radius:10px; }
+
+/* ── MOBILE (≤768px) ── */
+@media (max-width: 768px) {
+  html, body { overflow:hidden; }
+
+  /* Header compacter */
+  header { padding:10px 14px; }
+  .logo { font-size:20px; }
+  .header-stats { display:none; }
+  #fbStatus { font-size:11px; }
+
+  /* Tabs als bottom nav */
+  .tabs {
+    position:fixed; bottom:0; left:0; right:0;
+    z-index:200; padding:0;
+    border-top:1px solid var(--border);
+    border-bottom:none;
+    background:var(--surface);
+    justify-content:space-around;
+  }
+  .tab {
+    flex:1; padding:10px 4px 12px;
+    font-size:11px; text-align:center;
+    border-bottom:none;
+    border-top:2px solid transparent;
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .tab.active { border-top-color:var(--accent); border-bottom:none; color:var(--accent); }
+
+  /* Layout: één kolom, geen grid */
+  #mainWrapper {
+    display:flex; flex-direction:column;
+    flex:1; overflow:hidden;
+    padding-bottom:56px; /* ruimte voor bottom nav */
+  }
+  .layout { display:block !important; }
+
+  /* Sidebar als slide-in sheet */
+  .sidebar {
+    position:fixed; top:0; left:0; bottom:56px; width:80vw; max-width:300px;
+    z-index:150; transform:translateX(-100%);
+    transition:transform .25s ease;
+    box-shadow:4px 0 20px rgba(0,0,0,.5);
+  }
+  .sidebar.open { transform:translateX(0); }
+  .sidebar-overlay {
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.5);
+    z-index:149;
+  }
+  .sidebar-overlay.open { display:block; }
+
+  /* Panel als slide-in van rechts */
+  #rightPanel {
+    position:fixed; top:0; right:0; bottom:56px; width:90vw; max-width:340px;
+    z-index:150; transform:translateX(100%);
+    transition:transform .25s ease;
+    box-shadow:-4px 0 20px rgba(0,0,0,.5);
+  }
+  #rightPanel.open { transform:translateX(0); }
+
+  /* Main neemt volledige breedte */
+  .main { width:100%; }
+
+  /* Toolbar: zoek en filter onder elkaar */
+  .toolbar { flex-wrap:wrap; gap:6px; padding:8px 12px; }
+  .search-wrap { order:1; flex:1 1 100%; }
+  .filter-sel { order:2; flex:1; max-width:none; font-size:12px; }
+  .add-sel-btn { order:3; }
+
+  /* Tabel: verberg minder belangrijke kolommen */
+  thead th:nth-child(6),
+  thead th:nth-child(7),
+  td:nth-child(6),
+  td:nth-child(7) { display:none; }
+
+  /* Rij-acties altijd zichtbaar op mobiel */
+  .row-actions { opacity:1 !important; }
+
+  /* Panel knoppen kleiner */
+  .panel-btns { gap:4px; }
+  .pbtn { font-size:10px; padding:5px 6px; }
+
+  /* Beheer: één kolom */
+  .form-grid { grid-template-columns:1fr; }
+  .form-group.full { grid-column:1; }
+  .beheer-view { padding:14px; gap:14px; }
+
+  /* Modals vol scherm op mobiel */
+  .modal { width:100vw !important; max-width:100vw; border-radius:14px 14px 0 0; position:fixed; bottom:56px; left:0; right:0; max-height:85vh; }
+  .overlay { align-items:flex-end; }
+
+  /* FAB knop voor playlist toevoegen */
+  .fab {
+    display:flex !important;
+    position:fixed; bottom:68px; right:16px;
+    width:48px; height:48px;
+    border-radius:50%; background:var(--accent);
+    border:none; color:white; font-size:22px;
+    align-items:center; justify-content:center;
+    cursor:pointer; z-index:140;
+    box-shadow:0 4px 16px rgba(255,77,109,.4);
+  }
+
+  /* View header kleiner */
+  .view-header { padding:8px 12px 2px; }
+  .view-header h2 { font-size:15px; }
+  .table-wrap { padding:0 4px 12px; }
+
+  /* Track list links uitlijning */
+  .track-list-wrap { padding-left:24px; }
+}
+
+/* ── DESKTOP — verberg mobiele elementen ── */
+@media (min-width: 769px) {
+  #mainWrapper { display:contents; }
+  .fab { display:none; }
+  .sidebar-overlay { display:none !important; }
+  .mobile-pl-btn { display:none; }
+}
 </style>
 </head>
 <body>
@@ -239,22 +358,29 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
 </header>
 
 <div class="tabs">
-  <button class="tab active" onclick="switchTab('bibliotheek')">📚 Bibliotheek</button>
-  <button class="tab" onclick="switchTab('playlists')">🎵 Playlists</button>
-  <button class="tab" onclick="switchTab('beheer')">⚙️ Beheer</button>
+  <button class="tab active" onclick="switchTab('bibliotheek')">📚 <span class="tab-label">Bibliotheek</span></button>
+  <button class="tab" onclick="switchTab('playlists')">🎵 <span class="tab-label">Playlists</span></button>
+  <button class="tab" onclick="switchTab('beheer')">⚙️ <span class="tab-label">Beheer</span></button>
 </div>
 
+<div id="mainWrapper">
 <div style="display:flex;flex:1;overflow:hidden">
+
+<!-- Sidebar overlay voor mobiel -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
 <!-- SIDEBAR (playlists) -->
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-section">
-    <div class="sidebar-label">Playlists</div>
+  <div style="padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Playlists</span>
+    <button onclick="closeSidebar()" style="display:none;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer" id="sidebarCloseBtn">✕</button>
+  </div>
+  <div class="sidebar-section" style="border-top:none">
     <div id="plList"></div>
     <button class="new-pl-btn" onclick="openNewPlaylistModal()">+ Nieuwe Playlist</button>
   </div>
   <div class="sidebar-footer">
-    <div style="font-size:11px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between">
+    <div style="font-size:11px;color:var(--muted);display:flex;justify-content:space-between">
       <span>Firebase</span><span id="fbSyncStatus" style="color:var(--green)">●</span>
     </div>
   </div>
@@ -266,6 +392,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   <!-- ── BIBLIOTHEEK / PLAYLISTS VIEW ── -->
   <div id="libView" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
     <div class="toolbar">
+      <button id="hamburgerBtn" onclick="openSidebar()" style="display:none;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;padding:6px 10px;cursor:pointer" title="Playlists">☰</button>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
         <input type="text" id="searchInput" placeholder="Zoek artiest, album, genre…" oninput="render()">
@@ -349,6 +476,10 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
 </aside>
 
 </div><!-- /flex wrapper -->
+</div><!-- /mainWrapper -->
+
+<!-- FAB: open playlist panel op mobiel -->
+<button class="fab" id="fabBtn" onclick="toggleMobilePanel()" style="display:none" title="Playlist">📋</button>
 
 <!-- ── MODALS ── -->
 
@@ -505,18 +636,44 @@ window.switchTab = function(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => {
     t.classList.toggle('active', ['bibliotheek','playlists','beheer'][i] === tab);
   });
-  document.getElementById('libView').style.display   = (tab === 'bibliotheek' || tab === 'playlists') ? 'flex' : 'none';
-  document.getElementById('beheerView').classList.toggle('active', tab === 'beheer');
-  document.getElementById('sidebar').style.display   = (tab === 'playlists') ? 'flex' : 'none';
-  document.getElementById('rightPanel').style.display = (tab === 'playlists') ? 'flex' : 'none';
-  if (tab === 'bibliotheek' || tab === 'beheer') {
-    document.getElementById('mainArea').style.gridColumn = '';
+  const isMobile = window.innerWidth <= 768;
+  document.getElementById('libView').style.display    = (tab==='bibliotheek'||tab==='playlists') ? 'flex' : 'none';
+  document.getElementById('beheerView').classList.toggle('active', tab==='beheer');
+
+  // Desktop: toon/verberg sidebar en panel
+  if (!isMobile) {
+    document.getElementById('sidebar').style.display    = tab==='playlists' ? 'flex' : 'none';
+    document.getElementById('rightPanel').style.display = tab==='playlists' ? 'flex' : 'none';
   }
-  if (tab === 'bibliotheek') {
-    document.getElementById('viewTitle').textContent = 'Alle Albums';
-  }
+
+  // Mobiel: FAB alleen in playlists tab
+  const fab = document.getElementById('fabBtn');
+  if (fab) fab.style.display = (isMobile && tab==='playlists') ? 'flex' : 'none';
+
+  // Mobiel: sidebar sluit bij tab wissel
+  if (isMobile) closeSidebar();
+
+  if (tab==='bibliotheek') document.getElementById('viewTitle').textContent='Alle Albums';
   render();
 };
+
+// ── MOBILE HELPERS ────────────────────────────────────────────────
+window.openSidebar = function() {
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+  document.getElementById('sidebarCloseBtn').style.display = 'block';
+};
+window.closeSidebar = function() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+};
+window.toggleMobilePanel = function() {
+  const panel = document.getElementById('rightPanel');
+  panel.classList.toggle('open');
+};
+// Op mobiel: playlist selecteren opent panel
+const _origSelectPlaylist = window.selectPlaylist;
+
 
 // ── RENDER TABLE ──────────────────────────────────────────────────
 window.render = function() {
@@ -639,6 +796,11 @@ window.selectPlaylist = function(id) {
   renderPanel();
   render();
   updateSelUI();
+  // Mobiel: sluit sidebar en open panel
+  if (window.innerWidth <= 768) {
+    closeSidebar();
+    document.getElementById('rightPanel').classList.add('open');
+  }
 };
 
 window.openNewPlaylistModal = function() {
@@ -1268,7 +1430,23 @@ window.toast = toast;
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 // ── INIT ──────────────────────────────────────────────────────────
+function applyMobileLayout() {
+  const isMobile = window.innerWidth <= 768;
+  const hamburger = document.getElementById('hamburgerBtn');
+  if (hamburger) hamburger.style.display = (isMobile && currentTab==='playlists') ? 'block' : 'none';
+  const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+  if (sidebarCloseBtn) sidebarCloseBtn.style.display = isMobile ? 'block' : 'none';
+  if (!isMobile) {
+    // Desktop: verwijder mobiele open classes
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('rightPanel').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('open');
+  }
+}
+window.addEventListener('resize', () => { applyMobileLayout(); switchTab(currentTab); });
+
 switchTab('bibliotheek');
+applyMobileLayout();
 startListeners();
 </script>
 </body>
