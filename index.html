@@ -1,4 +1,4 @@
-<!-- MuziekApp V38 | index.html | Laatste wijziging: V38 - Complete CSS opschoning: duplicate layout regels verwijderd, schone height chain, mobile rewrite -->
+<!-- MuziekApp V39 | index.html | Laatste wijziging: V39 - Height chain fix: height:0+flex:1 truc + JS vangnet berekent exacte hoogte -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -22,12 +22,21 @@ body {
 }
 
 /* ── LAYOUT ── */
-/* Height chain: body(flex-col) → mainWrapper(flex:1) → appLayout(flex:1,grid) → mainArea(flex:1,flex-col) → content(flex:1,overflow-y:auto) */
-#mainWrapper  { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
-#appLayout    { flex:1; min-height:0; display:grid; grid-template-columns:240px 1fr 290px; overflow:hidden; }
-#sidebar      { grid-column:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
-#mainArea     { grid-column:2; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
-#rightPanel   { grid-column:3; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+/* Foolproof: mainWrapper vult EXACT de resterende hoogte */
+#mainWrapper {
+  flex:1; display:flex; flex-direction:column; overflow:hidden;
+  /* Expliciete min-height zodat flex:1 werkt in alle browsers */
+  min-height: 0;
+  /* Fallback via height als flex faalt */
+  height: 0;
+}
+#appLayout {
+  flex:1; min-height:0;
+  display:grid; grid-template-columns:240px 1fr 290px; overflow:hidden;
+}
+#sidebar    { grid-column:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; }
+#mainArea   { grid-column:2; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+#rightPanel { grid-column:3; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
 
 /* Tab-klassen schakelen kolommen */
 #appLayout.tab-bibliotheek { grid-template-columns:0 1fr 0; }
@@ -2681,7 +2690,24 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 // ── INIT ──────────────────────────────────────────────────────────
 function applyMobileLayout() {
-  // CSS doet het werk — alleen resize herstart de tab
+  // JS vangnet: bereken exacte hoogte voor mainWrapper
+  const header  = document.querySelector('header');
+  const tabs    = document.querySelector('.tabs');
+  const wrapper = document.getElementById('mainWrapper');
+  if (header && tabs && wrapper) {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile) {
+      // Op mobiel: tabs zitten onderaan (fixed), header bovenaan
+      const used = header.offsetHeight;
+      const tabsH = 50; // bottom tabs
+      wrapper.style.height = (window.innerHeight - used - tabsH) + 'px';
+    } else {
+      // Desktop: tabs zitten boven de content
+      const used = header.offsetHeight + tabs.offsetHeight;
+      wrapper.style.height = (window.innerHeight - used) + 'px';
+    }
+    wrapper.style.overflow = 'hidden';
+  }
   switchTab(currentTab);
 }
 window.addEventListener('resize', applyMobileLayout);
