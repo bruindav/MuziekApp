@@ -1,4 +1,4 @@
-<!-- MuziekApp V31 | index.html | Laatste wijziging: V31 - Scroll fix: mainWrapper hoogte, duplicate table-wrap regels opgeruimd, height chain compleet -->
+<!-- MuziekApp V32 | index.html | Laatste wijziging: V32 - Playlist modus balk (mobiel), track popup kies playlist, + knop per album -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -83,7 +83,75 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 .sel-count   { font-size:12px; color:var(--muted); }
 .table-wrap  { flex:1; overflow-y:auto; padding:0 18px 18px; min-height:0; -webkit-overflow-scrolling:touch; }
 
-/* ── MOBILE (<=768px) ── */
+/* ── PLAYLIST MODUS (mobiel) ── */
+.pl-mode-bar {
+  display:none; /* alleen mobiel via JS */
+  position:fixed; bottom:50px; left:0; right:0; z-index:130;
+  background:var(--surface); border-top:2px solid var(--accent);
+  padding:10px 16px; align-items:center; gap:10px;
+  box-shadow:0 -4px 20px rgba(0,0,0,.3);
+}
+.pl-mode-bar.active { display:flex; }
+.pl-mode-info { flex:1; min-width:0; }
+.pl-mode-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pl-mode-count { font-size:11px; color:var(--muted); }
+.pl-mode-close { background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; padding:4px 8px; }
+.pl-mode-close:hover { color:var(--accent); }
+
+/* + knop per rij in playlist modus */
+.album-add-btn {
+  display:none;
+  background:none; border:1px solid var(--green); color:var(--green);
+  border-radius:6px; font-size:16px; width:28px; height:28px;
+  cursor:pointer; align-items:center; justify-content:center;
+  flex-shrink:0; transition:background .15s;
+}
+.album-add-btn:hover { background:rgba(78,204,163,.15); }
+.album-add-btn.in-pl { border-color:var(--muted); color:var(--muted); cursor:default; font-size:12px; }
+.pl-mode-active .album-add-btn { display:flex; }
+
+/* Playlist modus knop in toolbar */
+.pl-mode-toggle {
+  padding:7px 12px; border-radius:8px; border:1px solid var(--border);
+  background:var(--surface2); color:var(--muted); font-family:'DM Sans',sans-serif;
+  font-size:12px; cursor:pointer; white-space:nowrap; transition:all .15s;
+  display:none; /* alleen mobiel */
+}
+.pl-mode-toggle.active { background:var(--accent); border-color:var(--accent); color:white; }
+
+/* Track popup (kies playlist) */
+.track-pl-popup {
+  position:fixed; inset:0; z-index:350;
+  background:rgba(0,0,0,.7); display:flex; align-items:flex-end;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.track-pl-popup.open { opacity:1; pointer-events:all; }
+.track-pl-sheet {
+  background:var(--surface); border-radius:16px 16px 0 0;
+  width:100%; padding:20px; padding-bottom:calc(20px + 50px);
+  transform:translateY(100%); transition:transform .25s;
+  max-height:70vh; overflow-y:auto;
+}
+.track-pl-popup.open .track-pl-sheet { transform:translateY(0); }
+.track-pl-title { font-size:13px; font-weight:600; margin-bottom:4px; }
+.track-pl-sub { font-size:11px; color:var(--muted); margin-bottom:16px; }
+.track-pl-item {
+  display:flex; align-items:center; gap:12px; padding:12px;
+  border-radius:10px; cursor:pointer; transition:background .15s;
+  border:1px solid var(--border); margin-bottom:8px;
+}
+.track-pl-item:hover, .track-pl-item:active { background:var(--surface2); }
+.track-pl-icon { font-size:18px; }
+.track-pl-name { font-size:13px; font-weight:500; }
+.track-pl-cnt { font-size:11px; color:var(--muted); }
+.track-pl-new { color:var(--accent); border-color:rgba(255,77,109,.3); }
+
+@media (max-width:768px) {
+  .pl-mode-toggle { display:block; }
+  /* Track add knop altijd zichtbaar op mobiel */
+  .track-add { opacity:1 !important; }
+}
+
 @media (max-width: 768px) {
   html { height:100%; }
   body { height:100%; overflow:hidden; }
@@ -466,6 +534,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       <select class="filter-sel" id="genreFilter" onchange="render()"><option value="">Alle genres</option></select>
       <select class="filter-sel" id="yearFilter" onchange="render()" style="max-width:90px"><option value="">Alle jaren</option></select>
       <button class="add-sel-btn" id="addSelBtn" onclick="addSelected()" style="display:none">+ Voeg toe</button>
+      <button class="pl-mode-toggle" id="plModeToggle" onclick="togglePlaylistMode()">🎵 Playlist</button>
     </div>
     <div class="view-header">
       <h2 id="viewTitle">Alle Albums</h2>
@@ -763,6 +832,25 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
         <button class="btn-primary" id="confirmOkBtn" style="background:var(--accent)">Verwijderen</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- Playlist modus balk (mobiel) -->
+<div class="pl-mode-bar" id="plModeBar">
+  <div style="font-size:20px">🎵</div>
+  <div class="pl-mode-info">
+    <div class="pl-mode-name" id="plModeName">Geen playlist</div>
+    <div class="pl-mode-count" id="plModeCount">Kies eerst een playlist</div>
+  </div>
+  <button class="pl-mode-close" onclick="togglePlaylistMode()" title="Stop playlist modus">✕</button>
+</div>
+
+<!-- Track → Playlist popup (mobiel) -->
+<div class="track-pl-popup" id="trackPlPopup" onclick="if(event.target===this)closeTrackPlPopup()">
+  <div class="track-pl-sheet">
+    <div class="track-pl-title" id="trackPlTitle">Track toevoegen</div>
+    <div class="track-pl-sub" id="trackPlSub">Kies een playlist</div>
+    <div id="trackPlList"></div>
   </div>
 </div>
 
@@ -1210,6 +1298,11 @@ window.render = function() {
             <button class="row-btn edit" onclick="openEditModal('${a.id}')" title="Bewerken">✏</button>
             <button class="row-btn del"  onclick="confirmDeleteAlbum('${a.id}')" title="Verwijderen">🗑</button>
           </div>
+          <button class="album-add-btn ${plIds.has(a.id)?'in-pl':''}"
+            onclick="addAlbumFromMode('${a.id}')"
+            title="${plIds.has(a.id)?'Al in playlist':'Toevoegen aan playlist'}">
+            ${plIds.has(a.id)?'✓':'+'}
+          </button>
         </td>
         <td>${plIds.has(a.id)?'<span class="in-pl" title="In playlist"></span>':''}</td>
       </tr>
@@ -1442,6 +1535,124 @@ window.cancelInvite = async function(email) {
   toast('Uitnodiging geannuleerd.','');
   loadMembersAndInvites();
 };
+// ── PLAYLIST MODUS (mobiel) ───────────────────────────────────────
+let playlistModeActive = false;
+
+window.togglePlaylistMode = function() {
+  if (window.innerWidth > 768) return;
+  if (!playlistModeActive) {
+    if (!activePlaylistId) { showPlaylistChooser(); return; }
+    activatePlaylistMode();
+  } else {
+    deactivatePlaylistMode();
+  }
+};
+
+function showPlaylistChooser() {
+  if (!playlists.length) { toast('Maak eerst een playlist aan via de Playlists tab.','err'); return; }
+  document.getElementById('trackPlTitle').textContent = 'Kies een playlist';
+  document.getElementById('trackPlSub').textContent = 'Daarna kun je albums toevoegen';
+  const list = document.getElementById('trackPlList');
+  list.innerHTML = playlists.map((pl,i) => {
+    const c = COLORS[i % COLORS.length];
+    return '<div class="track-pl-item" onclick="selectPlaylistForMode(\'' + pl.id + '\')">'+
+      '<div class="track-pl-icon" style="color:'+c.c+'">'+c.i+'</div>'+
+      '<div style="flex:1"><div class="track-pl-name">'+esc(pl.name)+'</div>'+
+      '<div class="track-pl-cnt">'+(pl.ids||[]).length+' items</div></div></div>';
+  }).join('');
+  document.getElementById('trackPlPopup').classList.add('open');
+}
+
+window.selectPlaylistForMode = function(id) {
+  activePlaylistId = id;
+  closeTrackPlPopup();
+  activatePlaylistMode();
+};
+
+function activatePlaylistMode() {
+  playlistModeActive = true;
+  const btn = document.getElementById('plModeToggle');
+  const bar = document.getElementById('plModeBar');
+  if (btn) { btn.textContent = '\u2713 Playlist modus'; btn.classList.add('active'); }
+  if (bar) bar.classList.add('active');
+  updatePlModeBar();
+  document.getElementById('tableWrap').classList.add('pl-mode-active');
+  render();
+}
+
+function deactivatePlaylistMode() {
+  playlistModeActive = false;
+  const btn = document.getElementById('plModeToggle');
+  const bar = document.getElementById('plModeBar');
+  if (btn) { btn.textContent = '\uD83C\uDFB5 Playlist'; btn.classList.remove('active'); }
+  if (bar) bar.classList.remove('active');
+  document.getElementById('tableWrap').classList.remove('pl-mode-active');
+  render();
+}
+
+window.addAlbumFromMode = async function(aid) {
+  if (!activePlaylistId) { toast('Kies eerst een playlist via de \uD83C\uDFB5 knop.','err'); return; }
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl) return;
+  if ((pl.ids||[]).includes(aid)) { toast('Staat al in de playlist.',''); return; }
+  const ids = [...(pl.ids||[]), aid];
+  await updateDoc(userDoc('playlists', activePlaylistId), {ids});
+  updatePlModeBar();
+  const a = albums.find(x=>x.id===aid);
+  toast((a?'"'+a.title+'"':'Album') + ' toegevoegd \u2713','ok');
+};
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl) return;
+  const n = document.getElementById('plModeName');
+  const c = document.getElementById('plModeCount');
+  if (n) n.textContent = pl.name;
+  if (c) c.textContent = (pl.ids||[]).length + ' items \u00b7 Tik + om toe te voegen';
+}
+
+// ── TRACK POPUP ───────────────────────────────────────────────────
+let pendingTrack = null;
+
+window.openTrackPlPopup = function(albumId, tid, title, artist) {
+  if (window.innerWidth > 768) { addTrackToPlaylist(albumId, tid, title, artist); return; }
+  pendingTrack = {albumId, tid, title, artist};
+  document.getElementById('trackPlTitle').textContent = title;
+  document.getElementById('trackPlSub').textContent = 'Toevoegen aan playlist:';
+  const list = document.getElementById('trackPlList');
+  list.innerHTML = playlists.map((pl,i) => {
+    const c = COLORS[i % COLORS.length];
+    const inPl = (pl.ids||[]).includes(tid);
+    return '<div class="track-pl-item" onclick="' + (inPl ? '' : 'addTrackFromPopup(\'' + pl.id + '\')') + '">'+
+      '<div class="track-pl-icon" style="color:'+c.c+'">'+c.i+'</div>'+
+      '<div style="flex:1"><div class="track-pl-name">'+esc(pl.name)+'</div>'+
+      '<div class="track-pl-cnt">'+(pl.ids||[]).length+' items'+(inPl?' \u00b7 Al toegevoegd':'')+'</div></div>'+
+      '<div style="font-size:18px;color:'+(inPl?'var(--green)':'var(--muted)')+'">'+(inPl?'\u2713':'+')+' </div></div>';
+  }).join('') +
+  '<div class="track-pl-item track-pl-new" onclick="createPlaylistAndAdd()">'+
+  '<div class="track-pl-icon">+</div><div><div class="track-pl-name">Nieuwe playlist</div></div></div>';
+  document.getElementById('trackPlPopup').classList.add('open');
+};
+
+window.addTrackFromPopup = async function(playlistId) {
+  if (!pendingTrack) return;
+  const {albumId, tid, title, artist} = pendingTrack;
+  pendingTrack = null;
+  closeTrackPlPopup();
+  activePlaylistId = playlistId;
+  await addTrackToPlaylist(albumId, tid, title, artist);
+  updatePlModeBar();
+};
+
+window.createPlaylistAndAdd = function() {
+  closeTrackPlPopup();
+  openNewPlaylistModal();
+  toast('Maak de playlist aan, open dan de track opnieuw.','');
+};
+
+window.closeTrackPlPopup = function() {
+  document.getElementById('trackPlPopup').classList.remove('open');
+  pendingTrack = null;
+};
+
 const DEFAULT_DEVICE_TYPES = ['CD','LP','Single','12" Single','Dubbel CD','Dubbel LP','EP','Cassette','DVD','Blu-ray'];
 let deviceTypes   = [];
 let storageLabels = [];
@@ -1991,7 +2202,7 @@ function renderTrackList(album) {
       <button class="track-add"
         data-album-id="${album.id}" data-tid="${tid}"
         data-title="${esc(t.title)}" data-artist="${esc(album.artist)}"
-        onclick="addTrackToPlaylist(this.dataset.albumId,this.dataset.tid,this.dataset.title,this.dataset.artist)"
+        onclick="openTrackPlPopup(this.dataset.albumId,this.dataset.tid,this.dataset.title,this.dataset.artist)"
         ${inPl?'disabled':''}>${inPl?'✓':'+ Voeg toe'}</button>
     </div>`;
   }).join('') : '<div class="track-list-loading" style="color:var(--muted)">Geen tracks.</div>';
