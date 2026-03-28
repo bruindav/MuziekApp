@@ -1,4 +1,4 @@
-<!-- MuziekApp V2 | index.html | Laatste wijziging: V2 - Spotify OAuth fix, localStorage activePlaylist herstel -->
+<!-- MuziekApp V3 | index.html | Laatste wijziging: V3 - Spotify JSON fix, robuustere API calls, betere foutmelding -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -727,20 +727,32 @@ async function exportToSpotify() {
 
   let spPlaylistId;
   try {
+    const playlistBody = {
+      name: pl.name,
+      description: 'Aangemaakt via Mijn Muziek - ' + pl.ids.length + ' albums',
+      public: true
+    };
     const res = await fetch(`https://api.spotify.com/v1/users/${spUserId}/playlists`, {
       method: 'POST',
-      headers: { Authorization: 'Bearer ' + spToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: pl.name, description: `Aangemaakt via Mijn Muziek • ${pl.ids.length} albums`, public: true }),
+      headers: {
+        'Authorization': 'Bearer ' + spToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(playlistBody),
     });
     const data = await res.json();
-    if (!data.id) throw new Error(data.error?.message || 'Aanmaken mislukt');
+    if (!data.id) {
+      const msg = data.error ? (data.error.status + ' ' + data.error.message) : JSON.stringify(data);
+      throw new Error(msg);
+    }
     spPlaylistId = data.id;
   } catch(e) {
     toast('Playlist aanmaken mislukt: ' + e.message, 'err');
+    showSpStrip('done', '⚠', 'Aanmaken mislukt', e.message, null, null, false);
     return;
   }
 
-  // 2. Zoek per album de eerste track op Spotify en verzamel URI's
+  // 2. Zoek per album tracks op Spotify
   const albumList = pl.ids.map(id => albums.find(a=>a.id===id)).filter(Boolean);
   const trackUris = [];
   let done = 0;
@@ -748,42 +760,58 @@ async function exportToSpotify() {
   for (const album of albumList) {
     done++;
     const pct = Math.round((done / albumList.length) * 80) + 5;
-    showSpStrip('working', '⏳', `Zoeken (${done}/${albumList.length})`, `${album.artist} — ${album.title}`, null, null, true, pct);
+    showSpStrip('working', '⏳', `Zoeken (${done}/${albumList.length})`, album.artist + ' \u2014 ' + album.title, null, null, true, pct);
 
     try {
-      const q = encodeURIComponent(`album:${album.title} artist:${album.artist}`);
-      const res = await fetch(`https://api.spotify.com/v1/search?q=${q}&type=track&limit=1&market=NL`, {
-        headers: { Authorization: 'Bearer ' + spToken }
-      });
+      // Eenvoudige zoekquery zonder field filters — robuuster voor speciale tekens
+      const searchTerm = album.artist + ' ' + album.title;
+      const q = encodeURIComponent(searchTerm);
+      const res = await fetch(
+        'https://api.spotify.com/v1/search?q=' + q + '&type=track&limit=1&market=NL',
+        { headers: { 'Authorization': 'Bearer ' + spToken } }
+      );
       const data = await res.json();
-      const track = data.tracks?.items?.[0];
+      const track = data.tracks && data.tracks.items && data.tracks.items[0];
       if (track) trackUris.push(track.uri);
-    } catch(e) { /* skip */ }
+    } catch(e) { /* skip dit album */ }
 
     // Rate limit voorzorg
-    await new Promise(r => setTimeout(r, 120));
+    await new Promise(r => setTimeout(r, 150));
   }
 
   if (!trackUris.length) {
     toast('Geen tracks gevonden op Spotify.', 'err');
+    showSpStrip('done', '⚠', 'Geen tracks gevonden', 'Spotify kon geen overeenkomsten vinden', null, null, false);
     return;
   }
 
   // 3. Voeg tracks toe in batches van 100
-  showSpStrip('working', '⏳', 'Tracks toevoegen...', `${trackUris.length} van ${albumList.length} albums gevonden`, null, null, true, 90);
+  showSpStrip('working', '⏳', 'Tracks toevoegen...', trackUris.length + ' van ' + albumList.length + ' albums gevonden', null, null, true, 90);
 
-  for (let i = 0; i < trackUris.length; i += 100) {
-    const batch = trackUris.slice(i, i + 100);
-    await fetch(`https://api.spotify.com/v1/playlists/${spPlaylistId}/tracks`, {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + spToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uris: batch }),
-    });
+  try {
+    for (let i = 0; i < trackUris.length; i += 100) {
+      const batch = trackUris.slice(i, i + 100);
+      const res = await fetch('https://api.spotify.com/v1/playlists/' + spPlaylistId + '/tracks', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + spToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ uris: batch }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.status + ' ' + data.error.message);
+    }
+  } catch(e) {
+    toast('Tracks toevoegen mislukt: ' + e.message, 'err');
+    return;
   }
 
-  const spUrl = `https://open.spotify.com/playlist/${spPlaylistId}`;
-  showSpStrip('done', '✓', `"${pl.name}" aangemaakt!`, `${trackUris.length}/${albumList.length} tracks toegevoegd`, () => window.open(spUrl, '_blank'), 'Open in Spotify', false);
-  toast(`Spotify playlist aangemaakt met ${trackUris.length} tracks ✓`, 'ok');
+  const spUrl = 'https://open.spotify.com/playlist/' + spPlaylistId;
+  showSpStrip('done', '✓', '"' + pl.name + '" aangemaakt!',
+    trackUris.length + '/' + albumList.length + ' tracks toegevoegd',
+    () => window.open(spUrl, '_blank'), 'Open in Spotify', false);
+  toast('Spotify playlist aangemaakt met ' + trackUris.length + ' tracks \u2713', 'ok');
 }
 
 function openAlbumSpotify(aid) {
