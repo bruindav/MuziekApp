@@ -1,4 +1,4 @@
-<!-- MuziekApp V18 | index.html | Laatste wijziging: V18 - Mobiele layout: bottom nav, slide-in sidebar/panel, FAB, responsive tabel -->
+<!-- MuziekApp V19 | index.html | Laatste wijziging: V19 - Barcode scanner, device types, opberglocaties (storage labels) -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -180,6 +180,15 @@ tbody tr.expanded .expand-arrow { transform:rotate(90deg); color:var(--accent); 
 .import-progress { margin-top:10px; font-size:12px; color:var(--muted); }
 .import-progress-bar-wrap { height:4px; background:var(--border); border-radius:2px; margin-top:6px; overflow:hidden; }
 .import-progress-bar { height:100%; background:var(--accent); border-radius:2px; width:0; transition:width .3s; }
+
+/* Barcode scan knop */
+.btn-scan { width:100%; padding:12px; background:linear-gradient(135deg,#00b4d8,#0077b6); border:none; border-radius:10px; color:white; font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:opacity .15s; }
+.btn-scan:hover { opacity:.85; }
+
+/* Tag chips */
+.tag-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; font-size:12px; color:var(--text); }
+.tag-chip button { background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; padding:0 0 0 2px; line-height:1; }
+.tag-chip button:hover { color:var(--accent); }
 
 /* ── MODAL ── */
 .overlay { position:fixed; inset:0; background:rgba(0,0,0,.75); display:flex; align-items:center; justify-content:center; z-index:300; opacity:0; pointer-events:none; transition:opacity .2s; }
@@ -413,6 +422,57 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   <!-- ── BEHEER VIEW ── -->
   <div class="beheer-view" id="beheerView">
 
+    <!-- Barcode scanner + Album toevoegen -->
+    <div class="beheer-card">
+      <h3>➕ Album Toevoegen</h3>
+
+      <!-- Barcode scan knop -->
+      <div id="scanSection" style="margin-bottom:14px">
+        <button class="btn-scan" onclick="startScan()">
+          <span style="font-size:18px">📷</span> Barcode Scannen
+        </button>
+        <div id="scanFeedback" style="font-size:12px;color:var(--muted);margin-top:6px"></div>
+        <div id="scannerWrap" style="display:none;margin-top:10px;position:relative">
+          <video id="scanVideo" style="width:100%;border-radius:10px;background:#000;max-height:220px;object-fit:cover"></video>
+          <canvas id="scanCanvas" style="display:none"></canvas>
+          <button onclick="stopScan()" style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.6);border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">✕ Stop</button>
+          <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);color:white;font-size:11px;padding:4px 12px;border-radius:20px">Richt camera op barcode</div>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Artiest *</label><input class="form-input" id="newArtist" placeholder="ABBA"></div>
+        <div class="form-group"><label class="form-label">Album Titel *</label><input class="form-input" id="newTitle" placeholder="Gold"></div>
+        <div class="form-group"><label class="form-label">Jaar</label><input class="form-input" id="newYear" placeholder="1992"></div>
+        <div class="form-group"><label class="form-label">Genre</label><input class="form-input" id="newGenre" placeholder="Pop"></div>
+        <div class="form-group"><label class="form-label">Platenlabel / Uitgever</label><input class="form-input" id="newLabel" placeholder="Polydor"></div>
+        <div class="form-group"><label class="form-label">Tracks</label><input class="form-input" id="newTracks" placeholder="19" type="number"></div>
+        <div class="form-group"><label class="form-label">Lengte</label><input class="form-input" id="newLength" placeholder="1:14:31"></div>
+
+        <!-- Device type -->
+        <div class="form-group">
+          <label class="form-label">Type drager</label>
+          <div style="display:flex;gap:6px">
+            <select class="form-input" id="newDeviceType" style="flex:1"></select>
+            <button onclick="openAddDeviceType()" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:14px" title="Type toevoegen">+</button>
+          </div>
+        </div>
+
+        <!-- Opberglocatie -->
+        <div class="form-group">
+          <label class="form-label">Opberglocatie</label>
+          <div style="display:flex;gap:6px">
+            <select class="form-input" id="newStorageLabel" style="flex:1"></select>
+            <button onclick="openAddStorageLabel()" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;font-size:14px" title="Locatie toevoegen">+</button>
+          </div>
+        </div>
+
+        <div class="form-group full" style="margin-top:4px">
+          <button class="btn-primary" onclick="saveNewAlbum()">💾 Album Opslaan</button>
+        </div>
+      </div>
+    </div>
+
     <!-- CSV Import -->
     <div class="beheer-card">
       <h3>⬆ CSV Importeren</h3>
@@ -429,20 +489,23 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       </div>
     </div>
 
-    <!-- Nieuw album toevoegen -->
+    <!-- Device types beheer -->
     <div class="beheer-card">
-      <h3>➕ Album Toevoegen</h3>
-      <div class="form-grid">
-        <div class="form-group"><label class="form-label">Artiest *</label><input class="form-input" id="newArtist" placeholder="ABBA"></div>
-        <div class="form-group"><label class="form-label">Album Titel *</label><input class="form-input" id="newTitle" placeholder="Gold"></div>
-        <div class="form-group"><label class="form-label">Jaar</label><input class="form-input" id="newYear" placeholder="1992"></div>
-        <div class="form-group"><label class="form-label">Genre</label><input class="form-input" id="newGenre" placeholder="Pop"></div>
-        <div class="form-group"><label class="form-label">Label</label><input class="form-input" id="newLabel" placeholder="Polydor"></div>
-        <div class="form-group"><label class="form-label">Tracks</label><input class="form-input" id="newTracks" placeholder="19" type="number"></div>
-        <div class="form-group"><label class="form-label">Lengte</label><input class="form-input" id="newLength" placeholder="1:14:31"></div>
-        <div class="form-group" style="align-self:end">
-          <button class="btn-primary" onclick="saveNewAlbum()">Album Opslaan</button>
-        </div>
+      <h3>💿 Drager Types Beheren</h3>
+      <div id="deviceTypeList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="newDeviceTypeInput" placeholder="Nieuw type…" style="flex:1" onkeydown="if(event.key==='Enter')addDeviceType()">
+        <button class="btn-primary" onclick="addDeviceType()">Toevoegen</button>
+      </div>
+    </div>
+
+    <!-- Storage labels beheer -->
+    <div class="beheer-card">
+      <h3>📦 Opberglocaties Beheren</h3>
+      <div id="storageLabelList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <input class="form-input" id="newStorageLabelInput" placeholder="Nieuwe locatie…" style="flex:1" onkeydown="if(event.key==='Enter')addStorageLabel()">
+        <button class="btn-primary" onclick="addStorageLabel()">Toevoegen</button>
       </div>
     </div>
 
@@ -514,6 +577,14 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
         <div class="form-group"><label class="form-label">Label</label><input class="form-input" id="editLabel"></div>
         <div class="form-group"><label class="form-label">Tracks</label><input class="form-input" id="editTracks" type="number"></div>
         <div class="form-group full"><label class="form-label">Lengte</label><input class="form-input" id="editLength"></div>
+        <div class="form-group">
+          <label class="form-label">Type drager</label>
+          <select class="form-input" id="editDeviceType"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Opberglocatie</label>
+          <select class="form-input" id="editStorageLabel"></select>
+        </div>
       </div>
     </div>
     <div class="modal-foot">
@@ -917,24 +988,248 @@ window.removeFromPlaylist = async function(aid) {
   await updateDoc(doc(db,'playlists',activePlaylistId), { ids: (pl.ids||[]).filter(id=>id!==aid) });
 };
 
-// ── ALBUM CRUD ────────────────────────────────────────────────────
+// ── DEVICE TYPES & STORAGE LABELS ────────────────────────────────
+const DEFAULT_DEVICE_TYPES = ['CD','LP','Single','12" Single','Dubbel CD','Dubbel LP','EP','Cassette','DVD','Blu-ray'];
+let deviceTypes   = [];
+let storageLabels = [];
+
+function startDeviceListeners() {
+  onSnapshot(collection(db,'deviceTypes'), snap => {
+    deviceTypes = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderDeviceTypeList();
+    populateDeviceSelects();
+  });
+  onSnapshot(collection(db,'storageLabels'), snap => {
+    storageLabels = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderStorageLabelList();
+    populateStorageSelects();
+    // Auto-cleanup: verwijder labels die aan geen album meer gekoppeld zijn
+    cleanupStorageLabels();
+  });
+}
+
+async function initDefaultDeviceTypes() {
+  const snap = await getDocs(collection(db,'deviceTypes'));
+  if (snap.empty) {
+    const batch = writeBatch(db);
+    DEFAULT_DEVICE_TYPES.forEach(name => batch.set(doc(collection(db,'deviceTypes')), {name, order: DEFAULT_DEVICE_TYPES.indexOf(name)}));
+    await batch.commit();
+  }
+}
+
+function populateDeviceSelects() {
+  const opts = '<option value="">— Kies type —</option>' + deviceTypes.sort((a,b)=>(a.order||0)-(b.order||0)).map(t=>`<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('');
+  ['newDeviceType','editDeviceType'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { const v=el.value; el.innerHTML=opts; el.value=v; }
+  });
+}
+
+function populateStorageSelects() {
+  const opts = '<option value="">— Geen locatie —</option>' + storageLabels.sort((a,b)=>a.name.localeCompare(b.name,'nl')).map(l=>`<option value="${esc(l.name)}">${esc(l.name)}</option>`).join('');
+  ['newStorageLabel','editStorageLabel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { const v=el.value; el.innerHTML=opts; el.value=v; }
+  });
+}
+
+function renderDeviceTypeList() {
+  const el = document.getElementById('deviceTypeList');
+  if (!el) return;
+  el.innerHTML = deviceTypes.sort((a,b)=>(a.order||0)-(b.order||0)).map(t =>
+    `<span class="tag-chip">${esc(t.name)}<button onclick="deleteDeviceType('${t.id}','${esc(t.name)}')" title="Verwijder">✕</button></span>`
+  ).join('');
+}
+
+function renderStorageLabelList() {
+  const el = document.getElementById('storageLabelList');
+  if (!el) return;
+  el.innerHTML = storageLabels.sort((a,b)=>a.name.localeCompare(b.name,'nl')).map(l =>
+    `<span class="tag-chip">${esc(l.name)}<button onclick="deleteStorageLabel('${l.id}','${esc(l.name)}')" title="Verwijder">✕</button></span>`
+  ).join('');
+}
+
+window.addDeviceType = async function() {
+  const inp = document.getElementById('newDeviceTypeInput');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (deviceTypes.find(t=>t.name.toLowerCase()===name.toLowerCase())) { toast('Bestaat al.','err'); return; }
+  await addDoc(collection(db,'deviceTypes'), {name, order: deviceTypes.length});
+  inp.value = '';
+};
+
+window.deleteDeviceType = async function(id, name) {
+  showConfirm('Type verwijderen?', '"'+name+'" verwijderen?', async () => {
+    await deleteDoc(doc(db,'deviceTypes',id));
+  });
+};
+
+window.addStorageLabel = async function() {
+  const inp = document.getElementById('newStorageLabelInput');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (storageLabels.find(l=>l.name.toLowerCase()===name.toLowerCase())) { toast('Bestaat al.','err'); return; }
+  await addDoc(collection(db,'storageLabels'), {name});
+  inp.value = '';
+};
+
+window.deleteStorageLabel = async function(id, name) {
+  showConfirm('Locatie verwijderen?', '"'+name+'" verwijderen?', async () => {
+    await deleteDoc(doc(db,'storageLabels',id));
+  });
+};
+
+async function cleanupStorageLabels() {
+  // Verwijder labels die aan geen enkel album meer gekoppeld zijn
+  const usedLabels = new Set(albums.map(a=>a.storageLabel).filter(Boolean));
+  for (const label of storageLabels) {
+    if (!usedLabels.has(label.name)) {
+      // Alleen auto-verwijderen als er al albums zijn geladen
+      // (niet bij eerste load als albums nog leeg is)
+      if (albums.length > 0) {
+        await deleteDoc(doc(db,'storageLabels',label.id));
+      }
+    }
+  }
+}
+
+window.openAddDeviceType = function() {
+  document.getElementById('newDeviceTypeInput').focus();
+  switchTab('beheer');
+  setTimeout(() => document.getElementById('newDeviceTypeInput').scrollIntoView({behavior:'smooth'}), 200);
+};
+window.openAddStorageLabel = function() {
+  document.getElementById('newStorageLabelInput').focus();
+  switchTab('beheer');
+  setTimeout(() => document.getElementById('newStorageLabelInput').scrollIntoView({behavior:'smooth'}), 200);
+};
+
+// ── BARCODE SCANNER ───────────────────────────────────────────────
+let scanStream = null;
+let scanInterval = null;
+
+window.startScan = async function() {
+  const feedback = document.getElementById('scanFeedback');
+  const wrap = document.getElementById('scannerWrap');
+  feedback.textContent = '';
+
+  // Check BarcodeDetector support
+  if (!('BarcodeDetector' in window)) {
+    feedback.textContent = '⚠ Barcode scanner niet beschikbaar in deze browser. Gebruik Chrome op Android/desktop.';
+    feedback.style.color = 'var(--accent)';
+    return;
+  }
+
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width:{ideal:1280}, height:{ideal:720} }
+    });
+    const video = document.getElementById('scanVideo');
+    video.srcObject = scanStream;
+    video.play();
+    wrap.style.display = 'block';
+    feedback.textContent = '📷 Scanner actief…';
+    feedback.style.color = 'var(--green)';
+
+    const detector = new BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e'] });
+    const canvas = document.getElementById('scanCanvas');
+    const ctx = canvas.getContext('2d');
+
+    scanInterval = setInterval(async () => {
+      if (video.readyState !== video.HAVE_ENOUGH_DATA) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      try {
+        const barcodes = await detector.detect(canvas);
+        if (barcodes.length > 0) {
+          const code = barcodes[0].rawValue;
+          stopScan();
+          feedback.textContent = '✓ Barcode: ' + code + ' — zoeken…';
+          feedback.style.color = 'var(--green)';
+          await lookupBarcode(code);
+        }
+      } catch(e) {}
+    }, 300);
+
+  } catch(e) {
+    feedback.textContent = '⚠ Camera toegang geweigerd. Controleer browser-toestemmingen.';
+    feedback.style.color = 'var(--accent)';
+  }
+};
+
+window.stopScan = function() {
+  if (scanStream) { scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; }
+  if (scanInterval) { clearInterval(scanInterval); scanInterval=null; }
+  document.getElementById('scannerWrap').style.display = 'none';
+};
+
+async function lookupBarcode(code) {
+  const feedback = document.getElementById('scanFeedback');
+  try {
+    // MusicBrainz barcode lookup
+    const res = await fetch(
+      'https://musicbrainz.org/ws/2/release?query=barcode:'+code+'&fmt=json&limit=1',
+      { headers: {'User-Agent':'MuziekApp/1.0 (bruindav.github.io)'} }
+    );
+    const data = await res.json();
+    const release = data.releases?.[0];
+
+    if (release) {
+      // Vul formulier in
+      document.getElementById('newArtist').value = release['artist-credit']?.[0]?.artist?.name || '';
+      document.getElementById('newTitle').value  = release.title || '';
+      const year = (release.date||'').match(/\b(19|20)\d{2}\b/)?.[0] || '';
+      document.getElementById('newYear').value   = year;
+      document.getElementById('newLabel').value  = release['label-info']?.[0]?.label?.name || '';
+      document.getElementById('newTracks').value = release['track-count'] || '';
+
+      feedback.textContent = '✓ Gevonden: "' + release.title + '" — controleer en sla op.';
+      feedback.style.color = 'var(--green)';
+      // Scroll naar form
+      document.getElementById('newArtist').scrollIntoView({behavior:'smooth', block:'center'});
+    } else {
+      // Probeer Open Library als fallback
+      feedback.textContent = '⚠ Niet gevonden op MusicBrainz (code: '+code+'). Vul handmatig in.';
+      feedback.style.color = 'var(--muted)';
+    }
+  } catch(e) {
+    feedback.textContent = '⚠ Zoeken mislukt. Vul handmatig in.';
+    feedback.style.color = 'var(--accent)';
+  }
+}
+
+// ── ALBUM CRUD (bijgewerkt met device/storage) ────────────────────
 window.saveNewAlbum = async function() {
   const artist = document.getElementById('newArtist').value.trim();
   const title  = document.getElementById('newTitle').value.trim();
   if (!artist || !title) { toast('Artiest en titel zijn verplicht.','err'); return; }
+  const genre = document.getElementById('newGenre').value.trim();
+  const storageLabel = document.getElementById('newStorageLabel').value;
   const album = {
     artist, title,
-    year:   document.getElementById('newYear').value.trim(),
-    genre:  document.getElementById('newGenre').value.trim(),
-    genreFirst: document.getElementById('newGenre').value.split(/[|;]/)[0].trim(),
-    label:  document.getElementById('newLabel').value.trim(),
-    tracks: document.getElementById('newTracks').value.trim(),
-    length: document.getElementById('newLength').value.trim(),
-    addedAt: serverTimestamp()
+    year:        document.getElementById('newYear').value.trim(),
+    genre,
+    genreFirst:  genre.split(/[|;]/)[0].trim(),
+    label:       document.getElementById('newLabel').value.trim(),
+    tracks:      document.getElementById('newTracks').value.trim(),
+    length:      document.getElementById('newLength').value.trim(),
+    deviceType:  document.getElementById('newDeviceType').value,
+    storageLabel,
+    addedAt:     serverTimestamp()
   };
   await addDoc(collection(db,'albums'), album);
+
+  // Zorg dat storage label bestaat
+  if (storageLabel && !storageLabels.find(l=>l.name===storageLabel)) {
+    await addDoc(collection(db,'storageLabels'), {name: storageLabel});
+  }
+
   ['newArtist','newTitle','newYear','newGenre','newLabel','newTracks','newLength'].forEach(id => document.getElementById(id).value='');
-  toast('Album "'+title+'" opgeslagen ✓', 'ok');
+  document.getElementById('newDeviceType').value  = '';
+  document.getElementById('newStorageLabel').value = '';
+  document.getElementById('scanFeedback').textContent = '';
+  toast('"'+title+'" opgeslagen ✓', 'ok');
 };
 
 window.openEditModal = function(id) {
@@ -949,6 +1244,12 @@ window.openEditModal = function(id) {
   document.getElementById('editLabel').value   = a.label||'';
   document.getElementById('editTracks').value  = a.tracks||'';
   document.getElementById('editLength').value  = a.length||'';
+  populateDeviceSelects();
+  populateStorageSelects();
+  setTimeout(() => {
+    document.getElementById('editDeviceType').value   = a.deviceType||'';
+    document.getElementById('editStorageLabel').value = a.storageLabel||'';
+  }, 50);
   openModal('editOverlay');
 };
 
@@ -960,16 +1261,22 @@ window.openEditFromDetail = function() {
 window.saveEditAlbum = async function() {
   if (!editingAlbumId) return;
   const genre = document.getElementById('editGenre').value.trim();
+  const storageLabel = document.getElementById('editStorageLabel').value;
   await updateDoc(doc(db,'albums',editingAlbumId), {
-    artist:     document.getElementById('editArtist').value.trim(),
-    title:      document.getElementById('editTitle').value.trim(),
-    year:       document.getElementById('editYear').value.trim(),
+    artist:       document.getElementById('editArtist').value.trim(),
+    title:        document.getElementById('editTitle').value.trim(),
+    year:         document.getElementById('editYear').value.trim(),
     genre,
-    genreFirst: genre.split(/[|;]/)[0].trim(),
-    label:      document.getElementById('editLabel').value.trim(),
-    tracks:     document.getElementById('editTracks').value.trim(),
-    length:     document.getElementById('editLength').value.trim(),
+    genreFirst:   genre.split(/[|;]/)[0].trim(),
+    label:        document.getElementById('editLabel').value.trim(),
+    tracks:       document.getElementById('editTracks').value.trim(),
+    length:       document.getElementById('editLength').value.trim(),
+    deviceType:   document.getElementById('editDeviceType').value,
+    storageLabel,
   });
+  if (storageLabel && !storageLabels.find(l=>l.name===storageLabel)) {
+    await addDoc(collection(db,'storageLabels'), {name: storageLabel});
+  }
   closeModal('editOverlay');
   toast('Album opgeslagen ✓', 'ok');
 };
@@ -1447,6 +1754,8 @@ window.addEventListener('resize', () => { applyMobileLayout(); switchTab(current
 
 switchTab('bibliotheek');
 applyMobileLayout();
+initDefaultDeviceTypes();
+startDeviceListeners();
 startListeners();
 </script>
 </body>
