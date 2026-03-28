@@ -1,4 +1,4 @@
-<!-- MuziekApp V1 | index.html | Laatste wijziging: V1 -->
+<!-- MuziekApp V2 | index.html | Laatste wijziging: V2 - Spotify OAuth fix, localStorage activePlaylist herstel -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -542,7 +542,7 @@ function addSelected() {
 function renderPanel() {
   const hdr   = document.getElementById('panelHdr');
   const list  = document.getElementById('panelList');
-  const strip = document.getElementById('dzStrip');
+  const strip = document.getElementById('spStrip');
 
   if (!activePlaylistId) {
     hdr.style.display='none'; strip.style.display='none';
@@ -635,16 +635,23 @@ async function handleSpotifyCallback() {
   const params = new URLSearchParams(window.location.search);
   const code   = params.get('code');
   const error  = params.get('error');
-  if (error) { toast('Spotify login geannuleerd.', 'err'); return; }
-  if (!code)  return;
 
-  // Clean URL
+  if (error) {
+    window.history.replaceState({}, '', window.location.pathname);
+    toast('Spotify login geannuleerd.', 'err');
+    return;
+  }
+  if (!code) return;
+
+  // Clean URL meteen — data staat al in localStorage
   window.history.replaceState({}, '', window.location.pathname);
 
   const verifier = sessionStorage.getItem('sp_verifier');
   if (!verifier) { toast('Login sessie verlopen, probeer opnieuw.', 'err'); return; }
 
-  // Exchange code for token
+  // Toon voortgang in strip
+  showSpStrip('working', '⏳', 'Inloggen...', 'Token ophalen bij Spotify', null, null, false);
+
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -657,12 +664,18 @@ async function handleSpotifyCallback() {
     }),
   });
   const data = await res.json();
+
+  sessionStorage.removeItem('sp_verifier');
+
   if (data.access_token) {
     spToken = data.access_token;
-    sessionStorage.removeItem('sp_verifier');
     await fetchSpotifyUser();
+    // Zorg dat het paneel goed gerenderd is na redirect
+    renderPanel();
+    document.getElementById('spStrip').style.display = 'none';
   } else {
-    toast('Spotify login mislukt: ' + (data.error_description||'onbekend'), 'err');
+    toast('Spotify login mislukt: ' + (data.error_description || data.error || 'onbekend'), 'err');
+    document.getElementById('spStrip').style.display = 'none';
   }
 }
 
@@ -839,13 +852,15 @@ function updateStats() {
 // ── LOCAL STORAGE ─────────────────────────────────────────────────
 const LS_ALBUMS    = 'muziekapp_albums';
 const LS_PLAYLISTS = 'muziekapp_playlists';
+const LS_ACTIVE_PL = 'muziekapp_active_pl';
 
 function saveToStorage() {
   try {
     localStorage.setItem(LS_ALBUMS,    JSON.stringify(albums));
     localStorage.setItem(LS_PLAYLISTS, JSON.stringify(playlists));
+    if (activePlaylistId) localStorage.setItem(LS_ACTIVE_PL, activePlaylistId);
+    else localStorage.removeItem(LS_ACTIVE_PL);
   } catch(e) {
-    // Quota overschreden (>5MB) — toon waarschuwing
     toast('Opslag bijna vol — bibliotheek niet opgeslagen.', 'err');
   }
 }
@@ -854,8 +869,11 @@ function loadFromStorage() {
   try {
     const a = localStorage.getItem(LS_ALBUMS);
     const p = localStorage.getItem(LS_PLAYLISTS);
+    const ap = localStorage.getItem(LS_ACTIVE_PL);
     if (a) albums    = JSON.parse(a);
     if (p) playlists = JSON.parse(p);
+    // Herstel actieve playlist alleen als die nog bestaat
+    if (ap && playlists.find(pl => pl.id === ap)) activePlaylistId = ap;
   } catch(e) { /* corrupte data — begin fresh */ }
 }
 
