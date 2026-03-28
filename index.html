@@ -1,4 +1,4 @@
-<!-- MuziekApp V25 | index.html | Laatste wijziging: V25 - Fix opstartscherm (bibliotheek ipv beheer), form-grid CSS desktop, loginScreen correct initieel -->
+<!-- MuziekApp V26 | index.html | Laatste wijziging: V26 - Household systeem (gedeelde database), uitnodigingen per email, toegangsbeheer voor eigenaar -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -435,6 +435,30 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
       </div>
     </div>
 
+    <!-- Gebruikers beheer (alleen voor eigenaar) -->
+    <div class="beheer-card" id="card-users" style="display:none">
+      <div class="beheer-card-header" onclick="toggleCard('card-users')">
+        <h3>👥 Toegang Beheren</h3>
+        <span class="beheer-card-chevron">▶</span>
+      </div>
+      <div class="beheer-card-body">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+          Nodig iemand uit om jouw bibliotheek te delen. Hij/zij ontvangt toegang zodra ze inloggen met dit e-mailadres.
+        </p>
+        <div style="margin-bottom:14px">
+          <div class="form-label" style="margin-bottom:6px">Uitnodiging versturen</div>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="inviteEmail" placeholder="email@voorbeeld.com" type="email" style="flex:1" onkeydown="if(event.key==='Enter')sendInvite()">
+            <button class="btn-primary" onclick="sendInvite()">Uitnodigen</button>
+          </div>
+        </div>
+        <div>
+          <div class="form-label" style="margin-bottom:8px">Huidige toegang</div>
+          <div id="membersList" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 </div><!-- /mainArea -->
@@ -591,7 +615,7 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 // ── FIREBASE ──────────────────────────────────────────────────────
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
-         getDocs, onSnapshot, query, orderBy, serverTimestamp, writeBatch
+         getDocs, getDoc, onSnapshot, query, orderBy, serverTimestamp, writeBatch
        } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
          signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
@@ -611,16 +635,54 @@ const db  = getFirestore(app);
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
 
-// ── USER-SCOPED COLLECTION HELPERS ────────────────────────────────
-let currentUser = null;
+// ── HOUSEHOLD SYSTEEM ─────────────────────────────────────────────
+// Jouw uid is de household owner. Andere gebruikers worden uitgenodigd
+// en krijgen toegang tot /households/{ownerUid}/...
+const OWNER_UID = 'nufxkFB1m9c2uf4jC8qhupDsbEi1';
+
+let currentUser   = null;
+let householdId   = null; // uid van de eigenaar wiens data we gebruiken
 
 function userCol(name) {
-  if (!currentUser) throw new Error('Niet ingelogd');
-  return collection(db, 'users', currentUser.uid, name);
+  if (!householdId) throw new Error('Geen household');
+  return collection(db, 'households', householdId, name);
 }
 function userDoc(name, id) {
-  if (!currentUser) throw new Error('Niet ingelogd');
-  return doc(db, 'users', currentUser.uid, name, id);
+  if (!householdId) throw new Error('Geen household');
+  return doc(db, 'households', householdId, name, id);
+}
+
+// Bepaal welk household deze gebruiker mag zien
+async function resolveHousehold(uid) {
+  // Eigenaar — gebruikt altijd eigen household
+  if (uid === OWNER_UID) {
+    householdId = OWNER_UID;
+    return true;
+  }
+  // Kijk of deze uid uitgenodigd is voor het household van de eigenaar
+  const memberDoc = await getDoc(doc(db, 'households', OWNER_UID, 'members', uid));
+  if (memberDoc.exists() && memberDoc.data().status === 'accepted') {
+    householdId = OWNER_UID;
+    return true;
+  }
+  // Kijk of er een uitnodiging is op basis van email
+  const invite = await getDoc(doc(db, 'households', OWNER_UID, 'invites', currentUser.email));
+  if (invite.exists()) {
+    // Accepteer automatisch — sla uid op als member
+    await setDoc(doc(db, 'households', OWNER_UID, 'members', uid), {
+      email: currentUser.email,
+      name:  currentUser.displayName || currentUser.email,
+      joinedAt: serverTimestamp(),
+      status: 'accepted'
+    });
+    // Verwijder invite
+    await deleteDoc(doc(db, 'households', OWNER_UID, 'invites', currentUser.email));
+    householdId = OWNER_UID;
+    return true;
+  }
+  // Geen toegang — eigen lege household
+  householdId = uid;
+  return false;
 }
 
 // ── STATE ─────────────────────────────────────────────────────────
@@ -711,10 +773,13 @@ function showAuthError(msg) {
   el.style.display = 'block';
 }
 
-function showApp() {
+function showApp(hasHouseholdAccess) {
   document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('userName').textContent = currentUser.displayName || currentUser.email;
-  // Zorg dat we op de bibliotheek tab beginnen
+  const name = currentUser.displayName || currentUser.email;
+  const isOwner = currentUser.uid === OWNER_UID;
+  const suffix = (!isOwner && hasHouseholdAccess) ? ' (gedeeld)' : '';
+  document.getElementById('userName').textContent = name + suffix;
+  initUserManagement();
   switchTab('bibliotheek');
 }
 
@@ -724,10 +789,12 @@ function showLogin() {
 }
 
 // Auth state listener — wordt als eerste uitgevoerd
-onAuthStateChanged(auth, user => {
+onAuthStateChanged(auth, async user => {
   if (user) {
     currentUser = user;
-    showApp();
+    // Bepaal welk household
+    const hasAccess = await resolveHousehold(user.uid);
+    showApp(hasAccess);
     // Stop eventuele oude listeners
     unsubscribeListeners.forEach(fn => fn());
     unsubscribeListeners = [];
@@ -736,6 +803,7 @@ onAuthStateChanged(auth, user => {
     startListeners();
   } else {
     currentUser = null;
+    householdId = null;
     showLogin();
   }
 });
@@ -1090,7 +1158,76 @@ window.removeFromPlaylist = async function(aid) {
   await updateDoc(userDoc('playlists',activePlaylistId), { ids: (pl.ids||[]).filter(id=>id!==aid) });
 };
 
-// ── DEVICE TYPES & STORAGE LABELS ────────────────────────────────
+// ── GEBRUIKERS BEHEER (alleen eigenaar) ───────────────────────────
+function initUserManagement() {
+  const isOwner = currentUser && currentUser.uid === OWNER_UID;
+  const card = document.getElementById('card-users');
+  if (card) card.style.display = isOwner ? 'block' : 'none';
+  if (isOwner) loadMembersAndInvites();
+}
+
+async function loadMembersAndInvites() {
+  const list = document.getElementById('membersList');
+  if (!list) return;
+  list.innerHTML = '<div style="font-size:12px;color:var(--muted)">Laden…</div>';
+
+  const rows = [];
+
+  // Actieve leden
+  const membersSnap = await getDocs(collection(db,'households',OWNER_UID,'members'));
+  membersSnap.forEach(d => {
+    const m = d.data();
+    rows.push(`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:8px">
+      <span style="font-size:16px">✅</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${esc(m.name||m.email)}</div>
+        <div style="font-size:11px;color:var(--muted)">${esc(m.email)} · Toegang verleend</div>
+      </div>
+      <button onclick="removeMember('${d.id}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:3px 6px;border-radius:4px" title="Verwijder toegang">✕</button>
+    </div>`);
+  });
+
+  // Openstaande uitnodigingen
+  const invitesSnap = await getDocs(collection(db,'households',OWNER_UID,'invites'));
+  invitesSnap.forEach(d => {
+    rows.push(`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:8px">
+      <span style="font-size:16px">⏳</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${esc(d.id)}</div>
+        <div style="font-size:11px;color:var(--muted)">Uitnodiging verstuurd — nog niet ingelogd</div>
+      </div>
+      <button onclick="cancelInvite('${esc(d.id)}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:3px 6px;border-radius:4px" title="Annuleer">✕</button>
+    </div>`);
+  });
+
+  list.innerHTML = rows.length ? rows.join('') : '<div style="font-size:12px;color:var(--muted)">Nog niemand uitgenodigd.</div>';
+}
+
+window.sendInvite = async function() {
+  const email = document.getElementById('inviteEmail').value.trim().toLowerCase();
+  if (!email) return;
+  if (!email.includes('@')) { toast('Ongeldig e-mailadres.','err'); return; }
+  await setDoc(doc(db,'households',OWNER_UID,'invites',email), {
+    invitedAt: serverTimestamp(), invitedBy: currentUser.email
+  });
+  document.getElementById('inviteEmail').value = '';
+  toast(email + ' uitgenodigd ✓','ok');
+  loadMembersAndInvites();
+};
+
+window.removeMember = async function(uid) {
+  showConfirm('Toegang verwijderen?', 'Deze persoon kan de bibliotheek niet meer zien.', async () => {
+    await deleteDoc(doc(db,'households',OWNER_UID,'members',uid));
+    toast('Toegang verwijderd.','');
+    loadMembersAndInvites();
+  });
+};
+
+window.cancelInvite = async function(email) {
+  await deleteDoc(doc(db,'households',OWNER_UID,'invites',email));
+  toast('Uitnodiging geannuleerd.','');
+  loadMembersAndInvites();
+};
 const DEFAULT_DEVICE_TYPES = ['CD','LP','Single','12" Single','Dubbel CD','Dubbel LP','EP','Cassette','DVD','Blu-ray'];
 let deviceTypes   = [];
 let storageLabels = [];
