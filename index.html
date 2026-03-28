@@ -1,4 +1,4 @@
-<!-- MuziekApp V23 | index.html | Laatste wijziging: V23 - Mobiele scroll fix, playlist tab werkend op mobiel (verticale stapeling), layout vereenvoudigd -->
+<!-- MuziekApp V24 | index.html | Laatste wijziging: V24 - Beheer tab scroll fix, boxen schalen nu volledig mee -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -50,6 +50,18 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 #appLayout.tab-beheer { grid-template-columns: 0 1fr 0; }
 #appLayout.tab-beheer #sidebar,
 #appLayout.tab-beheer #rightPanel { display:none; }
+
+/* Beheer view */
+.beheer-view {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+.beheer-view.active { display: flex; }
 
 /* Collapsible beheer cards */
 .beheer-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
@@ -145,6 +157,8 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
     overflow-y:auto !important;
     -webkit-overflow-scrolling:touch;
     flex:1;
+    padding:10px;
+    gap:10px;
   }
   .panel-list {
     overflow-y:auto !important;
@@ -169,7 +183,6 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 
   .form-grid { grid-template-columns:1fr; }
   .form-group.full { grid-column:1; }
-  .beheer-view { padding:10px; gap:10px; }
 
   .modal { width:100vw !important; max-width:100vw; border-radius:14px 14px 0 0; margin:0; position:fixed; bottom:50px; left:0; right:0; max-height:80vh; }
   .overlay { align-items:flex-end; }
