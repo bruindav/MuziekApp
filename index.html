@@ -1,4 +1,4 @@
-<!-- MuziekApp V21 | index.html | Laatste wijziging: V21 - Playlist tab layout fix (desktop+mobiel), collapsible beheer-blokken -->
+<!-- MuziekApp V22 | index.html | Laatste wijziging: V22 - Multi-user Firebase Auth (email+Google), import modus (toevoegen/overschrijven), data per user gescheiden -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -404,6 +404,48 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
 </head>
 <body>
 
+<!-- ── LOGIN SCHERM ── -->
+<div id="loginScreen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:500;overflow-y:auto;display:flex;align-items:center;justify-content:center">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:360px;max-width:95vw">
+    <div style="text-align:center;margin-bottom:24px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:3px;background:linear-gradient(135deg,var(--accent),var(--deezer));-webkit-background-clip:text;-webkit-text-fill-color:transparent">♪ Mijn Muziek</div>
+      <div style="font-size:13px;color:var(--muted);margin-top:4px">Jouw persoonlijke muziekbibliotheek</div>
+    </div>
+
+    <!-- Toggle login/register -->
+    <div style="display:flex;gap:0;margin-bottom:20px;background:var(--surface2);border-radius:8px;padding:3px">
+      <button id="loginTabBtn" onclick="showAuthTab('login')" style="flex:1;padding:7px;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;background:var(--accent);color:white;transition:all .15s">Inloggen</button>
+      <button id="registerTabBtn" onclick="showAuthTab('register')" style="flex:1;padding:7px;border:none;border-radius:6px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;background:transparent;color:var(--muted);transition:all .15s">Registreren</button>
+    </div>
+
+    <div id="authForm">
+      <div id="registerNameField" style="display:none;margin-bottom:12px">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Naam</label>
+        <input class="form-input" id="authName" placeholder="Jouw naam" style="width:100%">
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">E-mailadres</label>
+        <input class="form-input" id="authEmail" type="email" placeholder="naam@email.com" style="width:100%" onkeydown="if(event.key==='Enter')submitAuth()">
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Wachtwoord</label>
+        <input class="form-input" id="authPassword" type="password" placeholder="••••••••" style="width:100%" onkeydown="if(event.key==='Enter')submitAuth()">
+      </div>
+      <div id="authError" style="display:none;background:rgba(255,77,109,.1);border:1px solid var(--accent);border-radius:8px;padding:10px;font-size:13px;color:var(--accent);margin-bottom:14px"></div>
+      <button onclick="submitAuth()" style="width:100%;padding:11px;background:var(--accent);border:none;border-radius:8px;color:white;font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;cursor:pointer;margin-bottom:12px" id="authSubmitBtn">Inloggen</button>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <span style="font-size:12px;color:var(--muted)">of</span>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+      </div>
+      <button onclick="signInGoogle()" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Inloggen met Google
+      </button>
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="logo">♪ Mijn Muziek</div>
   <div class="header-stats">
@@ -411,6 +453,10 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <span>Playlists: <strong id="statPlaylists">—</strong></span>
   </div>
   <div id="fbStatus" style="font-size:12px;color:var(--muted)">⏳ Verbinden…</div>
+  <div id="userArea" style="display:flex;align-items:center;gap:10px;font-size:13px">
+    <span id="userName" style="color:var(--muted)"></span>
+    <button onclick="logOut()" style="padding:5px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">Uitloggen</button>
+  </div>
 </header>
 
 <div class="tabs">
@@ -693,6 +739,29 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   </div>
 </div>
 
+<!-- Import modus Modal -->
+<div class="overlay" id="importModeOverlay">
+  <div class="modal modal-sm">
+    <div class="modal-hdr">
+      <h3>📄 CSV Importeren</h3>
+      <button class="modal-close" onclick="closeModal('importModeOverlay')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Je hebt al <strong id="importExistingCount">0</strong> albums in je bibliotheek. Wat wil je doen?</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button onclick="startImportWithMode('add')" style="padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;text-align:left;transition:border-color .15s" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-weight:600;margin-bottom:3px">➕ Toevoegen aan bestaande data</div>
+          <div style="font-size:11px;color:var(--muted)">Bestaande albums blijven staan, nieuwe worden toegevoegd</div>
+        </button>
+        <button onclick="startImportWithMode('overwrite')" style="padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;text-align:left;transition:border-color .15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-weight:600;margin-bottom:3px">🔄 Bestaande data overschrijven</div>
+          <div style="font-size:11px;color:var(--muted)">Alle huidige albums worden verwijderd en vervangen door de CSV</div>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Confirm Delete Modal -->
 <div class="overlay" id="confirmOverlay">
   <div class="modal modal-sm modal-confirm">
@@ -717,6 +786,9 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
          getDocs, onSnapshot, query, orderBy, serverTimestamp, writeBatch
        } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+         signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
+       } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAYm68360D1BcZvXEBusC_o9xXdio-tBoc',
@@ -729,6 +801,20 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
+// ── USER-SCOPED COLLECTION HELPERS ────────────────────────────────
+let currentUser = null;
+
+function userCol(name) {
+  if (!currentUser) throw new Error('Niet ingelogd');
+  return collection(db, 'users', currentUser.uid, name);
+}
+function userDoc(name, id) {
+  if (!currentUser) throw new Error('Niet ingelogd');
+  return doc(db, 'users', currentUser.uid, name, id);
+}
 
 // ── STATE ─────────────────────────────────────────────────────────
 let albums      = [];
@@ -750,14 +836,142 @@ const COLORS = [
   {bg:'rgba(251,133,0,.12)',c:'#fb8500',i:'🎻'},
 ];
 
+// ── AUTH ──────────────────────────────────────────────────────────
+let authMode = 'login';
+let pendingCsvText = null;
+let importMode = 'add';
+let unsubscribeListeners = [];
+
+window.showAuthTab = function(mode) {
+  authMode = mode;
+  document.getElementById('loginTabBtn').style.background    = mode==='login'    ? 'var(--accent)' : 'transparent';
+  document.getElementById('loginTabBtn').style.color         = mode==='login'    ? 'white'         : 'var(--muted)';
+  document.getElementById('registerTabBtn').style.background = mode==='register' ? 'var(--accent)' : 'transparent';
+  document.getElementById('registerTabBtn').style.color      = mode==='register' ? 'white'         : 'var(--muted)';
+  document.getElementById('registerNameField').style.display = mode==='register' ? 'block' : 'none';
+  document.getElementById('authSubmitBtn').textContent       = mode==='login' ? 'Inloggen' : 'Account aanmaken';
+  document.getElementById('authError').style.display = 'none';
+};
+
+window.submitAuth = async function() {
+  const email    = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl    = document.getElementById('authError');
+  errEl.style.display = 'none';
+  if (!email || !password) { showAuthError('Vul e-mail en wachtwoord in.'); return; }
+  try {
+    if (authMode === 'login') {
+      await signInWithEmailAndPassword(auth, email, password);
+    } else {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      // Sla naam op in Firestore
+      const name = document.getElementById('authName').value.trim();
+      if (name) await setDoc(doc(db,'users',cred.user.uid), { name, email, createdAt: serverTimestamp() });
+    }
+  } catch(e) {
+    const msgs = {
+      'auth/user-not-found':     'Geen account gevonden met dit e-mailadres.',
+      'auth/wrong-password':     'Onjuist wachtwoord.',
+      'auth/email-already-in-use': 'Dit e-mailadres is al in gebruik.',
+      'auth/weak-password':      'Wachtwoord moet minimaal 6 tekens zijn.',
+      'auth/invalid-email':      'Ongeldig e-mailadres.',
+      'auth/invalid-credential': 'E-mail of wachtwoord onjuist.',
+    };
+    showAuthError(msgs[e.code] || e.message);
+  }
+};
+
+window.signInGoogle = async function() {
+  try {
+    await signInWithPopup(auth, googleProvider);
+  } catch(e) {
+    showAuthError('Google inloggen mislukt: ' + e.message);
+  }
+};
+
+window.logOut = async function() {
+  // Stop listeners
+  unsubscribeListeners.forEach(fn => fn());
+  unsubscribeListeners = [];
+  currentUser = null;
+  albums = []; playlists = []; trackItems = {}; deviceTypes = []; storageLabels = [];
+  await signOut(auth);
+};
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.body.style.overflow = 'hidden';
+  document.getElementById('userName').textContent = currentUser.displayName || currentUser.email;
+}
+
+function showLogin() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('tableWrap').innerHTML = '<div class="fb-loading">⏳ Inloggen…</div>';
+}
+
+// Auth state listener — wordt als eerste uitgevoerd
+onAuthStateChanged(auth, user => {
+  if (user) {
+    currentUser = user;
+    showApp();
+    // Stop eventuele oude listeners
+    unsubscribeListeners.forEach(fn => fn());
+    unsubscribeListeners = [];
+    initDefaultDeviceTypes();
+    startDeviceListeners();
+    startListeners();
+  } else {
+    currentUser = null;
+    showLogin();
+  }
+});
+
+// ── IMPORT MODUS ──────────────────────────────────────────────────
+window.importCSV = async function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  pendingCsvText = await file.text();
+  // Toon keuze als er al albums zijn
+  if (albums.length > 0) {
+    document.getElementById('importExistingCount').textContent = albums.length;
+    openModal('importModeOverlay');
+  } else {
+    await parseAndImportCSV(pendingCsvText, 'add');
+    pendingCsvText = null;
+  }
+};
+
+window.startImportWithMode = async function(mode) {
+  closeModal('importModeOverlay');
+  if (!pendingCsvText) return;
+  if (mode === 'overwrite') {
+    // Verwijder alle bestaande albums in batches
+    toast('Bestaande albums verwijderen…', '');
+    const snap = await getDocs(userCol('albums'));
+    const BATCH = 400;
+    const ids = snap.docs.map(d=>d.id);
+    for (let i=0;i<ids.length;i+=BATCH) {
+      const batch = writeBatch(db);
+      ids.slice(i,i+BATCH).forEach(id => batch.delete(userDoc('albums',id)));
+      await batch.commit();
+    }
+  }
+  await parseAndImportCSV(pendingCsvText, mode);
+  pendingCsvText = null;
+};
+
 // ── FIREBASE LISTENERS ────────────────────────────────────────────
 function startListeners() {
-  // Albums realtime
-  onSnapshot(query(collection(db,'albums'), orderBy('artist')), snap => {
+  const u1 = onSnapshot(query(userCol('albums'), orderBy('artist')), snap => {
     albums = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    updateFilters();
-    updateStats();
-    render();
+    updateFilters(); updateStats(); render();
     document.getElementById('fbStatus').textContent = '✓ Verbonden';
     document.getElementById('fbStatus').style.color = 'var(--green)';
   }, err => {
@@ -766,18 +980,16 @@ function startListeners() {
     toast('Firestore fout: ' + err.message, 'err');
   });
 
-  // Playlists realtime
-  onSnapshot(query(collection(db,'playlists'), orderBy('createdAt')), snap => {
+  const u2 = onSnapshot(query(userCol('playlists'), orderBy('createdAt')), snap => {
     playlists = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    updateStats();
-    renderPlaylists();
-    renderPanel();
+    updateStats(); renderPlaylists(); renderPanel();
   });
 
-  // TrackItems realtime
-  onSnapshot(collection(db,'trackItems'), snap => {
+  const u3 = onSnapshot(userCol('trackItems'), snap => {
     snap.docs.forEach(d => { trackItems[d.id] = d.data(); });
   });
+
+  unsubscribeListeners.push(u1, u2, u3);
 }
 
 // ── TABS ──────────────────────────────────────────────────────────
@@ -973,7 +1185,7 @@ window.confirmNewPlaylist = async function() {
   const name = document.getElementById('newPlName').value.trim();
   if (!name) return;
   closeModal('newPlOverlay');
-  const ref = await addDoc(collection(db,'playlists'), { name, ids:[], createdAt: serverTimestamp() });
+  const ref = await addDoc(userCol('playlists'), { name, ids:[], createdAt: serverTimestamp() });
   activePlaylistId = ref.id;
   renderPlaylists();
   renderPanel();
@@ -982,12 +1194,12 @@ window.confirmNewPlaylist = async function() {
 
 window.renamePlaylist = async function(val) {
   if (!activePlaylistId) return;
-  await updateDoc(doc(db,'playlists',activePlaylistId), { name: val });
+  await updateDoc(userDoc('playlists',activePlaylistId), { name: val });
 };
 
 async function confirmDeletePlaylist(id) {
   showConfirm('Playlist verwijderen?', 'De inhoud gaat verloren.', async () => {
-    await deleteDoc(doc(db,'playlists',id));
+    await deleteDoc(userDoc('playlists',id));
     if (activePlaylistId === id) { activePlaylistId = null; renderPanel(); }
     toast('Playlist verwijderd.', '');
   });
@@ -1001,7 +1213,7 @@ window.addSelected = async function() {
   let added = 0;
   for (const id of selectedIds) { if (!current.has(id)) { current.add(id); added++; } }
   if (!added) { toast('Staan al in de playlist.', ''); return; }
-  await updateDoc(doc(db,'playlists',activePlaylistId), { ids: [...current] });
+  await updateDoc(userDoc('playlists',activePlaylistId), { ids: [...current] });
   selectedIds.clear();
   toast(added+' album'+(added!==1?'s':'')+' toegevoegd ✓', 'ok');
 };
@@ -1074,7 +1286,7 @@ function renderPanel() {
 window.removeFromPlaylist = async function(aid) {
   const pl = playlists.find(p=>p.id===activePlaylistId);
   if (!pl) return;
-  await updateDoc(doc(db,'playlists',activePlaylistId), { ids: (pl.ids||[]).filter(id=>id!==aid) });
+  await updateDoc(userDoc('playlists',activePlaylistId), { ids: (pl.ids||[]).filter(id=>id!==aid) });
 };
 
 // ── DEVICE TYPES & STORAGE LABELS ────────────────────────────────
@@ -1083,25 +1295,25 @@ let deviceTypes   = [];
 let storageLabels = [];
 
 function startDeviceListeners() {
-  onSnapshot(collection(db,'deviceTypes'), snap => {
+  const u4 = onSnapshot(userCol('deviceTypes'), snap => {
     deviceTypes = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderDeviceTypeList();
     populateDeviceSelects();
   });
-  onSnapshot(collection(db,'storageLabels'), snap => {
+  const u5 = onSnapshot(userCol('storageLabels'), snap => {
     storageLabels = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderStorageLabelList();
     populateStorageSelects();
-    // Auto-cleanup: verwijder labels die aan geen album meer gekoppeld zijn
     cleanupStorageLabels();
   });
+  unsubscribeListeners.push(u4, u5);
 }
 
 async function initDefaultDeviceTypes() {
-  const snap = await getDocs(collection(db,'deviceTypes'));
+  const snap = await getDocs(userCol('deviceTypes'));
   if (snap.empty) {
     const batch = writeBatch(db);
-    DEFAULT_DEVICE_TYPES.forEach(name => batch.set(doc(collection(db,'deviceTypes')), {name, order: DEFAULT_DEVICE_TYPES.indexOf(name)}));
+    DEFAULT_DEVICE_TYPES.forEach(name => batch.set(doc(userCol('deviceTypes')), {name, order: DEFAULT_DEVICE_TYPES.indexOf(name)}));
     await batch.commit();
   }
 }
@@ -1143,13 +1355,13 @@ window.addDeviceType = async function() {
   const name = inp.value.trim();
   if (!name) return;
   if (deviceTypes.find(t=>t.name.toLowerCase()===name.toLowerCase())) { toast('Bestaat al.','err'); return; }
-  await addDoc(collection(db,'deviceTypes'), {name, order: deviceTypes.length});
+  await addDoc(userCol('deviceTypes'), {name, order: deviceTypes.length});
   inp.value = '';
 };
 
 window.deleteDeviceType = async function(id, name) {
   showConfirm('Type verwijderen?', '"'+name+'" verwijderen?', async () => {
-    await deleteDoc(doc(db,'deviceTypes',id));
+    await deleteDoc(userDoc('deviceTypes',id));
   });
 };
 
@@ -1158,13 +1370,13 @@ window.addStorageLabel = async function() {
   const name = inp.value.trim();
   if (!name) return;
   if (storageLabels.find(l=>l.name.toLowerCase()===name.toLowerCase())) { toast('Bestaat al.','err'); return; }
-  await addDoc(collection(db,'storageLabels'), {name});
+  await addDoc(userCol('storageLabels'), {name});
   inp.value = '';
 };
 
 window.deleteStorageLabel = async function(id, name) {
   showConfirm('Locatie verwijderen?', '"'+name+'" verwijderen?', async () => {
-    await deleteDoc(doc(db,'storageLabels',id));
+    await deleteDoc(userDoc('storageLabels',id));
   });
 };
 
@@ -1176,7 +1388,7 @@ async function cleanupStorageLabels() {
       // Alleen auto-verwijderen als er al albums zijn geladen
       // (niet bij eerste load als albums nog leeg is)
       if (albums.length > 0) {
-        await deleteDoc(doc(db,'storageLabels',label.id));
+        await deleteDoc(userDoc('storageLabels',label.id));
       }
     }
   }
@@ -1313,11 +1525,11 @@ window.saveNewAlbum = async function() {
     storageLabel,
     addedAt:     serverTimestamp()
   };
-  await addDoc(collection(db,'albums'), album);
+  await addDoc(userCol('albums'), album);
 
   // Zorg dat storage label bestaat
   if (storageLabel && !storageLabels.find(l=>l.name===storageLabel)) {
-    await addDoc(collection(db,'storageLabels'), {name: storageLabel});
+    await addDoc(userCol('storageLabels'), {name: storageLabel});
   }
 
   ['newArtist','newTitle','newYear','newGenre','newLabel','newTracks','newLength','newBarcode','newHerkenning','newOrigYear','newComposer','newProducer','newMusician'].forEach(id => document.getElementById(id).value='');
@@ -1363,7 +1575,7 @@ window.saveEditAlbum = async function() {
   if (!editingAlbumId) return;
   const genre = document.getElementById('editGenre').value.trim();
   const storageLabel = document.getElementById('editStorageLabel').value;
-  await updateDoc(doc(db,'albums',editingAlbumId), {
+  await updateDoc(userDoc('albums',editingAlbumId), {
     artist:       document.getElementById('editArtist').value.trim(),
     title:        document.getElementById('editTitle').value.trim(),
     year:         document.getElementById('editYear').value.trim(),
@@ -1382,7 +1594,7 @@ window.saveEditAlbum = async function() {
     storageLabel,
   });
   if (storageLabel && !storageLabels.find(l=>l.name===storageLabel)) {
-    await addDoc(collection(db,'storageLabels'), {name: storageLabel});
+    await addDoc(userCol('storageLabels'), {name: storageLabel});
   }
   closeModal('editOverlay');
   toast('Album opgeslagen ✓', 'ok');
@@ -1391,7 +1603,7 @@ window.saveEditAlbum = async function() {
 async function confirmDeleteAlbum(id) {
   const a = albums.find(x=>x.id===id);
   showConfirm('Album verwijderen?', '"'+(a?.title||id)+'" wordt permanent verwijderd.', async () => {
-    await deleteDoc(doc(db,'albums',id));
+    await deleteDoc(userDoc('albums',id));
     toast('Album verwijderd.', '');
   });
 }
@@ -1543,7 +1755,7 @@ async function parseAndImportCSV(text) {
   const existingLabels = new Set(storageLabels.map(l=>l.name));
   for (const name of newStorageLabels) {
     if (!existingLabels.has(name)) {
-      await addDoc(collection(db,'storageLabels'), {name});
+      await addDoc(userCol('storageLabels'), {name});
       existingLabels.add(name);
     }
   }
@@ -1554,7 +1766,7 @@ async function parseAndImportCSV(text) {
   for (let i=0;i<rows.length;i+=BATCH_SIZE) {
     const batch = writeBatch(db);
     const chunk = rows.slice(i, i+BATCH_SIZE);
-    chunk.forEach(r => batch.set(doc(collection(db,'albums')), r));
+    chunk.forEach(r => batch.set(doc(userCol('albums')), r));
     await batch.commit();
     added += chunk.length;
     const pct = Math.round(added/rows.length*100);
@@ -1739,8 +1951,8 @@ window.addTrackToPlaylist = async function(albumId, tid, trackTitle, artist) {
   if ((pl.ids||[]).includes(tid)) { toast('Staat al in de playlist.',''); return; }
   // Sla trackItem op in Firestore
   const album = albums.find(a=>a.id===albumId);
-  await setDoc(doc(db,'trackItems',tid), { id:tid, albumId, title:trackTitle, artist, album:album?.title||'', year:album?.year||'', isTrack:true });
-  await updateDoc(doc(db,'playlists',activePlaylistId), { ids:[...(pl.ids||[]), tid] });
+  await setDoc(userDoc('trackItems',tid), { id:tid, albumId, title:trackTitle, artist, album:album?.title||'', year:album?.year||'', isTrack:true });
+  await updateDoc(userDoc('playlists',activePlaylistId), { ids:[...(pl.ids||[]), tid] });
   rerenderTrackWrap(albumId, album);
   toast('"'+trackTitle+'" toegevoegd ✓','ok');
 };
@@ -1834,7 +2046,7 @@ document.getElementById('panelList').addEventListener('drop', async e=>{
   if (!pl) return;
   const ids=pl.ids||[];
   if (!ids.includes(dragAlbumId)) {
-    await updateDoc(doc(db,'playlists',activePlaylistId),{ids:[...ids,dragAlbumId]});
+    await updateDoc(userDoc('playlists',activePlaylistId),{ids:[...ids,dragAlbumId]});
     const a=albums.find(x=>x.id===dragAlbumId);
     toast('"'+(a?.title||'Album')+'" toegevoegd ✓','ok');
   } else toast('Staat al in de playlist.','');
@@ -1865,7 +2077,7 @@ window.onPanelDrop = async function(e,targetAid) {
   const fi=ids.indexOf(panelDragId), ti=ids.indexOf(targetAid);
   if (fi<0||ti<0) return;
   ids.splice(fi,1); ids.splice(ti,0,panelDragId);
-  await updateDoc(doc(db,'playlists',activePlaylistId),{ids});
+  await updateDoc(userDoc('playlists',activePlaylistId),{ids});
   panelDragId=null;
 };
 
@@ -1912,9 +2124,7 @@ window.addEventListener('resize', () => { applyMobileLayout(); switchTab(current
 
 switchTab('bibliotheek');
 applyMobileLayout();
-initDefaultDeviceTypes();
-startDeviceListeners();
-startListeners();
+// startListeners wordt aangeroepen door onAuthStateChanged
 </script>
 </body>
 </html>
