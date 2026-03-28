@@ -1,4 +1,4 @@
-<!-- MuziekApp V34 | index.html | Laatste wijziging: V34 - Playlist drawer mobiel, beheer scroll fix, toolbar verborgen in playlist tab -->
+<!-- MuziekApp V35 | index.html | Laatste wijziging: V35 - Alfabet navigatie: desktop balk + mobiele zijindex, sectiekoppen in lijst -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -83,7 +83,60 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 .sel-count   { font-size:12px; color:var(--muted); }
 .table-wrap  { flex:1; overflow-y:auto; padding:0 18px 18px; min-height:0; -webkit-overflow-scrolling:touch; }
 
-/* ── PLAYLIST DRAWER (mobiel) ── */
+/* ── ALFABET NAVIGATIE ── */
+.alpha-bar {
+  display:flex; flex-wrap:wrap; gap:2px;
+  padding:6px 18px; background:var(--surface);
+  border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.alpha-btn {
+  padding:3px 6px; border-radius:5px; border:none;
+  background:none; color:var(--muted); font-family:'DM Sans',sans-serif;
+  font-size:12px; font-weight:500; cursor:pointer;
+  transition:all .12s; min-width:22px; text-align:center;
+}
+.alpha-btn:hover { background:var(--surface2); color:var(--text); }
+.alpha-btn.active { background:var(--accent); color:white; border-radius:5px; }
+.alpha-btn.empty { opacity:.25; cursor:default; pointer-events:none; }
+.alpha-btn.all { color:var(--accent); font-weight:600; }
+.alpha-btn.all.active { background:var(--accent); color:white; }
+
+/* Mobiel: index aan de zijkant */
+.alpha-index {
+  display:none;
+  position:absolute; right:2px; top:0; bottom:0;
+  flex-direction:column; justify-content:center; align-items:center;
+  gap:1px; z-index:10; padding:4px 0;
+  pointer-events:none;
+}
+.alpha-index.visible { pointer-events:all; }
+.alpha-idx-btn {
+  font-size:10px; font-weight:600; color:var(--muted);
+  width:18px; text-align:center; cursor:pointer;
+  padding:1px 0; border-radius:3px; line-height:1.4;
+  transition:color .1s;
+}
+.alpha-idx-btn:hover, .alpha-idx-btn.active { color:var(--accent); }
+.alpha-idx-btn.empty { opacity:.2; }
+
+/* Sectie headers in de tabel */
+.alpha-section-hdr {
+  padding:6px 8px 3px;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:18px; letter-spacing:2px;
+  color:var(--accent); border-bottom:1px solid var(--border);
+  position:sticky; top:0; background:var(--bg); z-index:1;
+}
+
+@media (max-width:768px) {
+  .alpha-bar { display:none; }
+  .alpha-index { display:flex; }
+  .table-wrap { position:relative; }
+}
+@media (min-width:769px) {
+  .alpha-index { display:none !important; }
+}
+
 .pl-drawer-overlay {
   display:none;
   position:fixed; inset:0; z-index:160;
@@ -543,7 +596,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       <button id="hamburgerBtn" onclick="openSidebar()" style="display:none;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;padding:6px 10px;cursor:pointer" title="Playlists">☰</button>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" placeholder="Zoek artiest, album, genre…" oninput="render()">
+        <input type="text" id="searchInput" placeholder="Zoek artiest, album, genre…" oninput="activeAlpha='';render()">
       </div>
       <select class="filter-sel" id="genreFilter" onchange="render()"><option value="">Alle genres</option></select>
       <select class="filter-sel" id="yearFilter" onchange="render()" style="max-width:90px"><option value="">Alle jaren</option></select>
@@ -554,8 +607,14 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       <h2 id="viewTitle">Alle Albums</h2>
       <span class="sel-count" id="selCount"></span>
     </div>
-    <div class="table-wrap" id="tableWrap">
-      <div class="fb-loading">⏳ Bibliotheek laden…</div>
+    <!-- Desktop letterbalk -->
+    <div class="alpha-bar" id="alphaBar"></div>
+    <div style="position:relative;flex:1;overflow:hidden;display:flex;flex-direction:column">
+      <div class="table-wrap" id="tableWrap">
+        <div class="fb-loading">⏳ Bibliotheek laden…</div>
+      </div>
+      <!-- Mobiele index -->
+      <div class="alpha-index" id="alphaIndex"></div>
     </div>
   </div>
 
@@ -1271,12 +1330,25 @@ window.render = function() {
     return sortAsc ? c : -c;
   });
 
+  // Alfabet filter (alleen in bibliotheek tab)
+  if (currentTab === 'bibliotheek' && activeAlpha) {
+    filtered = filtered.filter(a => getFirstLetter(a) === activeAlpha);
+  }
+
+  // Altijd alpha controls updaten (ook als leeg)
+  renderAlphaControls(list.filter(a => {
+    const mg = !genre || a.genreFirst === genre;
+    const my = !year  || a.year === year;
+    return mg && my;
+  }));
+
   if (!albums.length && currentTab !== 'beheer') {
     wrap.innerHTML = `<div class="empty"><div class="empty-icon">💿</div><h3>Geen albums</h3><p>Importeer een CSV-bestand via de <strong>Beheer</strong> tab.</p></div>`;
     return;
   }
   if (!filtered.length) {
-    wrap.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><h3>Geen resultaten</h3><p>Probeer een andere zoekterm.</p></div>`;
+    wrap.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div><h3>Geen resultaten</h3><p>Probeer een andere zoekterm of letter.</p></div>`;
+    renderAlphaControls(list);
     return;
   }
 
@@ -1285,7 +1357,10 @@ window.render = function() {
     : new Set();
 
   const th = (col,lbl) => `<th onclick="sortBy('${col}')">${lbl}${sortCol===col?(sortAsc?' ↑':' ↓'):''}</th>`;
-  const showActions = true;
+
+  // Sectiekoppen in bibliotheek tab (alleen zonder actieve letter)
+  const showSectionHdrs = currentTab === 'bibliotheek' && !activeAlpha && !q && sortCol === 'artist';
+  let lastLetter = '';
 
   wrap.innerHTML = `<table>
     <thead><tr>
@@ -1301,7 +1376,14 @@ window.render = function() {
       <th style="width:14px"></th>
     </tr></thead>
     <tbody>
-    ${filtered.map((a,i) => `
+    ${filtered.map((a,i) => {
+      const letter = getFirstLetter(a);
+      let sectionHdr = '';
+      if (showSectionHdrs && letter !== lastLetter) {
+        lastLetter = letter;
+        sectionHdr = `<tr><td colspan="10"><div class="alpha-section-hdr" id="alpha-${letter}">${letter}</div></td></tr>`;
+      }
+      return sectionHdr + `
       <tr class="${selectedIds.has(a.id)?'selected':''} ${expandedAlbumId===a.id?'expanded':''}"
           data-id="${a.id}" draggable="true"
           ondragstart="onTableDragStart(event,'${a.id}')"
@@ -1331,7 +1413,8 @@ window.render = function() {
         <td>${plIds.has(a.id)?'<span class="in-pl" title="In playlist"></span>':''}</td>
       </tr>
       ${expandedAlbumId===a.id ? '<tr><td colspan="10"><div class="track-list-wrap" id="trackWrap_'+a.id+'">'+renderTrackList(a)+'</div></td></tr>' : ''}
-    `).join('')}
+    `;
+    }).join('')}
     </tbody></table>`;
   updateSelUI();
 };
@@ -1549,7 +1632,62 @@ window.cancelInvite = async function(email) {
   toast('Uitnodiging geannuleerd.','');
   loadMembersAndInvites();
 };
-// ── PLAYLIST DRAWER (mobiel) ──────────────────────────────────────
+// ── ALFABET NAVIGATIE ─────────────────────────────────────────────
+let activeAlpha = ''; // '' = alle letters
+
+function getFirstLetter(album) {
+  const name = (album.artist || album.title || '').trim();
+  // Verwijder "The ", "De ", "Het " prefix voor sortering
+  const stripped = name.replace(/^(the |de |het |a |an )\s*/i, '');
+  const ch = stripped[0]?.toUpperCase() || '#';
+  return /[A-Z]/.test(ch) ? ch : '#';
+}
+
+function renderAlphaControls(visibleAlbums) {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+  const usedLetters = new Set(visibleAlbums.map(a => getFirstLetter(a)));
+
+  // Desktop balk
+  const bar = document.getElementById('alphaBar');
+  if (bar) {
+    bar.innerHTML =
+      `<button class="alpha-btn all ${activeAlpha===''?'active':''}" onclick="setAlpha('')">Alle</button>` +
+      (usedLetters.has('#') ? `<button class="alpha-btn ${activeAlpha==='#'?'active':''}" onclick="setAlpha('#')">#</button>` : '') +
+      letters.map(l =>
+        `<button class="alpha-btn ${!usedLetters.has(l)?'empty':''} ${activeAlpha===l?'active':''}"
+          onclick="setAlpha('${l}')">${l}</button>`
+      ).join('');
+  }
+
+  // Mobiele index
+  const idx = document.getElementById('alphaIndex');
+  if (idx) {
+    const allLetters = usedLetters.has('#') ? ['#', ...letters.filter(l => usedLetters.has(l))] : letters.filter(l => usedLetters.has(l));
+    idx.className = 'alpha-index' + (allLetters.length > 0 ? ' visible' : '');
+    idx.innerHTML = allLetters.map(l =>
+      `<div class="alpha-idx-btn ${activeAlpha===l?'active':''}" onclick="scrollToLetter('${l}')">${l}</div>`
+    ).join('');
+  }
+}
+
+window.setAlpha = function(letter) {
+  activeAlpha = letter;
+  render();
+};
+
+window.scrollToLetter = function(letter) {
+  activeAlpha = letter;
+  render();
+  // Scroll naar boven na filter
+  const wrap = document.getElementById('tableWrap');
+  if (wrap) wrap.scrollTop = 0;
+  // Update index highlight
+  document.querySelectorAll('.alpha-idx-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === letter);
+  });
+};
+
+
 window.openPlDrawer = function() {
   renderPlDrawer();
   document.getElementById('plDrawer').classList.add('open');
