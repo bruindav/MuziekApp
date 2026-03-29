@@ -68,7 +68,7 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 .header-stats strong { color:var(--text); }
 
 /* ── TABS ── */
-.tabs { display:flex; gap:2px; background:var(--surface); border-bottom:1px solid var(--border); padding:0 24px; flex-shrink:0; }
+.tabs { display:flex; gap:2px; background:var(--surface); border-bottom:1px solid var(--border); padding:0 24px; flex-shrink:0; position:relative; z-index:60; }
 .tab { padding:10px 18px; font-size:13px; font-weight:500; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; transition:all .15s; background:none; border-top:none; border-left:none; border-right:none; font-family:'DM Sans',sans-serif; }
 .tab:hover { color:var(--text); }
 .tab.active { color:var(--accent); border-bottom-color:var(--accent); }
@@ -712,7 +712,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
 </div><!-- /mainWrapper -->
 
 <!-- ── BEHEER PAGINA (buiten grid, eigen scroll) ── -->
-<div id="beheerPage" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; overflow-y:auto; -webkit-overflow-scrolling:touch; background:var(--bg); z-index:50; padding-bottom:60px;">
+<div id="beheerPage" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; overflow-y:auto; -webkit-overflow-scrolling:touch; background:var(--bg); z-index:40; padding-bottom:60px;">
   <!-- Beheer header -->
   <div style="padding:14px 20px 10px; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:1;">
     <div style="font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:2px; color:var(--text);">⚙ Beheer</div>
@@ -2728,15 +2728,33 @@ window.addTrackToPlaylist = async function(albumId, tid, trackTitle, artist) {
 };
 
 // ── DEEZER ────────────────────────────────────────────────────────
+// Deezer openen — deep link op mobiel, website op desktop
+function openDeezerUrl(query) {
+  const encoded = encodeURIComponent(query);
+  const webUrl  = 'https://www.deezer.com/search/' + encoded;
+  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    // Probeer app deep link, val terug op website na 1 sec
+    const appUrl = 'deezer://search/' + encoded;
+    const start = Date.now();
+    window.location = appUrl;
+    setTimeout(() => {
+      // Als we nog steeds in de browser zijn (app niet geïnstalleerd)
+      if (Date.now() - start < 1500) window.open(webUrl, '_blank');
+    }, 800);
+  } else {
+    window.open(webUrl, '_blank');
+  }
+}
+
 window.openAlbumDeezer = function(aid) {
   const a = albums.find(x=>x.id===aid);
   if (!a) return;
   const url = 'https://www.deezer.com/search/'+encodeURIComponent(a.artist+' '+a.title);
   showDzStrip(a, url);
-  window.open(url,'_blank');
+  openDeezerUrl(a.artist + ' ' + a.title);
 };
 window.openTrackDeezer = function(title, artist) {
-  window.open('https://www.deezer.com/search/'+encodeURIComponent(artist+' '+title),'_blank');
+  openDeezerUrl(artist + ' ' + title);
 };
 window.openPlaylistDeezer = function() {
   const pl = playlists.find(p=>p.id===activePlaylistId);
