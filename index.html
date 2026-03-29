@@ -2883,19 +2883,21 @@ window.addTrackToPlaylist = async function(albumId, tid, trackTitle, artist) {
 };
 
 // ── DEEZER ────────────────────────────────────────────────────────
-// Deezer openen — deep link op mobiel, website op desktop
+// Deezer openen — juiste deep link per platform
 function openDeezerUrl(query) {
   const encoded = encodeURIComponent(query);
   const webUrl  = 'https://www.deezer.com/search/' + encoded;
-  if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-    // Probeer app deep link, val terug op website na 1 sec
-    const appUrl = 'deezer://search/' + encoded;
-    const start = Date.now();
-    window.location = appUrl;
-    setTimeout(() => {
-      // Als we nog steeds in de browser zijn (app niet geïnstalleerd)
-      if (Date.now() - start < 1500) window.open(webUrl, '_blank');
-    }, 800);
+  const ua = navigator.userAgent;
+
+  if (/Android/i.test(ua)) {
+    // Android: gebruik intent URL — opent app direct als geïnstalleerd, anders website
+    const intentUrl = 'intent://search/' + encoded +
+      '#Intent;scheme=deezer;package=deezer.android.app;S.browser_fallback_url=' +
+      encodeURIComponent(webUrl) + ';end';
+    window.location.href = intentUrl;
+  } else if (/iPhone|iPad|iPod/i.test(ua)) {
+    // iOS: probeer universal link, val terug op website
+    window.location.href = 'https://www.deezer.com/search/' + encoded;
   } else {
     window.open(webUrl, '_blank');
   }
