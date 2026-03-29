@@ -872,8 +872,10 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       <button class="modal-close" onclick="closeModal('detailOverlay')">✕</button>
     </div>
     <div class="modal-body" id="detailBody"></div>
-    <div class="modal-foot">
+    <div class="modal-foot" style="flex-wrap:wrap;gap:6px">
       <button class="btn-secondary" onclick="closeModal('detailOverlay')">Sluiten</button>
+      <button class="btn-secondary" style="color:var(--deezer);border-color:var(--deezer)" id="detailDeezerBtn" onclick="openAlbumDeezerFromDetail()">🎧 Deezer</button>
+      <button class="btn-secondary" style="color:var(--accent);border-color:var(--accent)" id="detailDeleteBtn" onclick="closeModal('detailOverlay');confirmDeleteAlbum(editingAlbumId)">🗑 Verwijderen</button>
       <button class="btn-primary" id="detailEditBtn" onclick="openEditFromDetail()">✏ Bewerken</button>
     </div>
   </div>
@@ -1468,10 +1470,10 @@ window.render = function() {
           data-id="${a.id}" draggable="true"
           ondragstart="onTableDragStart(event,'${a.id}')"
           ondragend="onTableDragEnd(event)"
-          ontouchstart="this._lpT=setTimeout(()=>openCtxMenu('${a.id}',event),500)"
+          ontouchstart="this._lpT=setTimeout(()=>openCtxMenu('${a.id}',event),600)"
           ontouchend="clearTimeout(this._lpT)"
           ontouchmove="clearTimeout(this._lpT)"
-          onclick="if(window.innerWidth<=768){openCtxMenu('${a.id}',event)}">
+          onclick="if(window.innerWidth<=768){openDetailModal('${a.id}')}">
         <td onclick="toggleExpand('${a.id}',event)" style="cursor:pointer;text-align:center">
           <span class="expand-arrow">▶</span>
         </td>
@@ -2321,17 +2323,21 @@ async function confirmDeleteAlbum(id) {
 window.confirmDeleteAlbum = confirmDeleteAlbum;
 
 // ── ALBUM DETAIL MODAL ────────────────────────────────────────────
+window.openAlbumDeezerFromDetail = function() {
+  openAlbumDeezer(editingAlbumId);
+};
+
 window.openDetailModal = async function(id) {
   editingAlbumId = id;
   const a = albums.find(x=>x.id===id);
   if (!a) return;
 
-  document.getElementById('detailTitle').textContent = a.title;
+  document.getElementById('detailTitle').textContent = a.artist + ' — ' + a.title;
   const body = document.getElementById('detailBody');
-  body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Cover ophalen…</div>';
+  body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Laden…</div>';
   openModal('detailOverlay');
 
-  // Cover ophalen via iTunes Search API
+  // Cover ophalen via iTunes
   let coverUrl = null;
   try {
     const q = encodeURIComponent(a.artist + ' ' + a.title);
@@ -2341,38 +2347,63 @@ window.openDetailModal = async function(id) {
       r.artistName.toLowerCase().includes(a.artist.toLowerCase().slice(0,5)) ||
       r.collectionName.toLowerCase().includes(a.title.toLowerCase().slice(0,5))
     ) || data.results?.[0];
-    if (match?.artworkUrl100) {
-      coverUrl = match.artworkUrl100.replace('100x100bb','500x500bb');
-    }
+    if (match?.artworkUrl100) coverUrl = match.artworkUrl100.replace('100x100bb','300x300bb');
   } catch(e) {}
 
+  // Bouw detail HTML
+  const fields = [
+    ['Artiest',       esc(a.artist)],
+    ['Album',         esc(a.title)],
+    ['Jaar',          a.year||'—'],
+    ['Orig. jaar',    a.origYear||'—'],
+    ['Tracks',        a.tracks||'—'],
+    ['Lengte',        a.length||'—'],
+    ['Type drager',   esc(a.deviceType)||'—'],
+    ['Opberglocatie', esc(a.storageLabel)||'—'],
+    ['Herkenningsnr.',a.herkenning||'—'],
+    ['Label',         esc(a.label)||'—'],
+    ['Barcode',       esc(a.barcode)||'—'],
+    ['Genre',         esc(a.genre)||'—'],
+  ].filter(([,v]) => v && v !== '—').map(([l,v]) =>
+    `<div class="detail-item"><label>${l}</label><span>${v}</span></div>`
+  ).join('');
+
+  const extras = [
+    a.composer && `<div class="detail-item full"><label>Componist</label><span>${esc(a.composer)}</span></div>`,
+    a.producer && `<div class="detail-item full"><label>Producer</label><span>${esc(a.producer)}</span></div>`,
+    a.musician && `<div class="detail-item full"><label>Muzikant</label><span>${esc(a.musician)}</span></div>`,
+  ].filter(Boolean).join('');
+
   body.innerHTML = `
-    ${coverUrl
-      ? `<img src="${coverUrl}" style="width:100%;max-height:220px;object-fit:cover;border-radius:8px;margin-bottom:14px" onerror="this.style.display='none'">`
-      : `<div class="modal-cover-placeholder">💿</div>`
-    }
-    <div class="detail-grid">
-      <div class="detail-item"><label>Artiest</label><span>${esc(a.artist)}</span></div>
-      <div class="detail-item"><label>Album</label><span>${esc(a.title)}</span></div>
-      <div class="detail-item"><label>Jaar</label><span>${a.year||'—'}</span></div>
-      <div class="detail-item"><label>Orig. jaar</label><span>${a.origYear||'—'}</span></div>
-      <div class="detail-item"><label>Tracks</label><span>${a.tracks||'—'}</span></div>
-      <div class="detail-item"><label>Lengte</label><span>${a.length||'—'}</span></div>
-      <div class="detail-item"><label>Label</label><span>${esc(a.label)||'—'}</span></div>
-      <div class="detail-item"><label>Type drager</label><span>${esc(a.deviceType)||'—'}</span></div>
-      <div class="detail-item"><label>Opberglocatie</label><span>${esc(a.storageLabel)||'—'}</span></div>
-      <div class="detail-item"><label>Herkenningsnr.</label><span>${a.herkenning||'—'}</span></div>
-      <div class="detail-item"><label>Barcode</label><span>${esc(a.barcode)||'—'}</span></div>
-      <div class="detail-item full"><label>Genre</label><span>${esc(a.genre)||'—'}</span></div>
+    <div style="display:flex;gap:14px;margin-bottom:14px;align-items:flex-start">
+      ${coverUrl
+        ? `<img src="${coverUrl}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">`
+        : `<div style="width:90px;height:90px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:36px;flex-shrink:0">💿</div>`
+      }
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:600;margin-bottom:3px">${esc(a.title)}</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:8px">${esc(a.artist)}${a.year?' · '+a.year:''}</div>
+        ${a.deviceType?`<div style="font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 8px;display:inline-block">${esc(a.deviceType)}</div>`:''}
+        ${a.storageLabel?`<div style="font-size:11px;color:var(--muted);margin-top:4px">📦 ${esc(a.storageLabel)}</div>`:''}
+        ${a.herkenning?`<div style="font-size:11px;color:var(--muted)">Nr. ${esc(a.herkenning)}</div>`:''}
+      </div>
     </div>
-    ${a.composer||a.producer||a.musician ? '<div class="detail-grid" style="margin-top:0">'+
-      (a.composer?'<div class="detail-item full"><label>Componist</label><span>'+esc(a.composer)+'</span></div>':'')+
-      (a.producer?'<div class="detail-item full"><label>Producer</label><span>'+esc(a.producer)+'</span></div>':'')+
-      (a.musician?'<div class="detail-item full"><label>Muzikant</label><span>'+esc(a.musician)+'</span></div>':'')+
-      '</div>' : ''}
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="btn-secondary" style="flex:1" onclick="openAlbumDeezer('${a.id}')">🎧 Openen in Deezer</button>
+    <div class="detail-grid">${fields}</div>
+    ${extras?`<div class="detail-grid" style="margin-top:0">${extras}</div>`:''}
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Tracks</div>
+      <div id="detailTrackWrap" style="font-size:13px;color:var(--muted)">⏳ Tracks laden…</div>
     </div>`;
+
+  // Laad tracks asynchroon
+  try {
+    const trackHtml = await renderTrackListAsync(a);
+    const tw = document.getElementById('detailTrackWrap');
+    if (tw) tw.innerHTML = trackHtml;
+  } catch(e) {
+    const tw = document.getElementById('detailTrackWrap');
+    if (tw) tw.innerHTML = '<div style="color:var(--muted);font-size:12px">Tracks niet beschikbaar.</div>';
+  }
 };
 
 // ── CSV IMPORT ────────────────────────────────────────────────────
@@ -2512,6 +2543,30 @@ window.toggleExpand = function(aid, e) {
   if (expandedAlbumId && !trackCache[aid]) fetchTracks(aid);
   render();
 };
+
+// Async versie voor gebruik in detail modal
+async function renderTrackListAsync(album) {
+  const aid = album.id;
+  if (!trackCache[aid]) await fetchTracks(aid);
+  const cache = trackCache[aid];
+  if (!cache || !cache.tracks?.length) return '<div style="color:var(--muted);font-size:12px">Geen tracks gevonden.</div>';
+  const plIds = activePlaylistId
+    ? new Set((playlists.find(p=>p.id===activePlaylistId)||{ids:[]}).ids)
+    : new Set();
+  return cache.tracks.map(t => {
+    const tid = album.id+'_t'+t.num;
+    const inPl = plIds.has(tid);
+    return `<div class="track-row ${inPl?'in-pl':''}">
+      <span class="track-num">${t.num}</span>
+      <span class="track-title">${esc(t.title)}</span>
+      <span class="track-dur">${t.dur||''}</span>
+      <button class="track-dz" onclick="openTrackDeezer('${esc(t.title).replace(/'/g,"\\'")}','${esc(album.artist).replace(/'/g,"\\'")}')">🎧</button>
+      <button class="track-add" ${inPl?'disabled':''} onclick="openTrackPlPopup('${album.id}','${tid}','${esc(t.title).replace(/'/g,"\\'")}','${esc(album.artist).replace(/'/g,"\\'")}')">
+        ${inPl?'✓':'+'}
+      </button>
+    </div>`;
+  }).join('');
+}
 
 function renderTrackList(album) {
   const cache = trackCache[album.id];
