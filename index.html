@@ -742,7 +742,12 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
 
       <div class="form-grid">
         <div class="form-group"><label class="form-label">Artiest *</label><input class="form-input" id="newArtist" placeholder="ABBA"></div>
-        <div class="form-group"><label class="form-label">Album Titel *</label><input class="form-input" id="newTitle" placeholder="Gold"></div>
+        <div class="form-group"><label class="form-label">Album Titel *</label>
+          <div style="display:flex;gap:6px">
+            <input class="form-input" id="newTitle" placeholder="Gold" style="flex:1">
+            <button onclick="lookupByTitle()" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--deezer);cursor:pointer;font-size:13px;white-space:nowrap" title="Gegevens ophalen via MusicBrainz">🔍 Ophalen</button>
+          </div>
+        </div>
         <div class="form-group"><label class="form-label">Jaar</label><input class="form-input" id="newYear" placeholder="1992"></div>
         <div class="form-group"><label class="form-label">Genre</label><input class="form-input" id="newGenre" placeholder="Pop"></div>
         <div class="form-group"><label class="form-label">Platenlabel / Uitgever</label><input class="form-input" id="newLabel" placeholder="Polydor"></div>
@@ -2177,42 +2182,220 @@ window.stopScan = function() {
   document.getElementById('scannerWrap').style.display = 'none';
 };
 
+// Mapping MusicBrainz medium format → onze device types
+const MB_FORMAT_MAP = {
+  'CD': 'CD', 'CD-R': 'CD', 'HDCD': 'CD', 'CD+G': 'CD',
+  'DVD': 'DVD', 'DVD-Audio': 'DVD', 'DVD-Video': 'DVD',
+  'Blu-ray': 'Blu-ray', 'Blu-ray-R': 'Blu-ray',
+  '12" Vinyl': 'LP', 'LP': 'LP', 'Vinyl': 'LP',
+  '10" Vinyl': 'LP', '7" Vinyl': 'Single',
+  'Cassette': 'Cassette', 'Digital Media': 'CD',
+  'SACD': 'CD', 'Hybrid SACD': 'CD',
+};
+
+async function mbFetch(url) {
+  const res = await fetch('https://musicbrainz.org/ws/2/' + url + (url.includes('?')?'&':'?') + 'fmt=json',
+    { headers: {'User-Agent':'MuziekApp/1.0 (bruindav.github.io)'} });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.json();
+}
+
 async function lookupBarcode(code) {
   const feedback = document.getElementById('scanFeedback');
+  feedback.textContent = '🔍 Barcode opzoeken…';
+  feedback.style.color = 'var(--muted)';
+
   try {
-    // MusicBrainz barcode lookup
-    const res = await fetch(
-      'https://musicbrainz.org/ws/2/release?query=barcode:'+code+'&fmt=json&limit=1',
-      { headers: {'User-Agent':'MuziekApp/1.0 (bruindav.github.io)'} }
-    );
-    const data = await res.json();
-    const release = data.releases?.[0];
-
-    if (release) {
-      // Vul formulier in
-      document.getElementById('newArtist').value = release['artist-credit']?.[0]?.artist?.name || '';
-      document.getElementById('newTitle').value  = release.title || '';
-      const year = (release.date||'').match(/\b(19|20)\d{2}\b/)?.[0] || '';
-      document.getElementById('newYear').value   = year;
-      document.getElementById('newLabel').value  = release['label-info']?.[0]?.label?.name || '';
-      document.getElementById('newTracks').value = release['track-count'] || '';
-
-      feedback.textContent = '✓ Gevonden: "' + release.title + '" — controleer en sla op.';
-      feedback.style.color = 'var(--green)';
-      // Scroll naar form
-      document.getElementById('newArtist').scrollIntoView({behavior:'smooth', block:'center'});
-    } else {
-      // Probeer Open Library als fallback
-      feedback.textContent = '⚠ Niet gevonden op MusicBrainz (code: '+code+'). Vul handmatig in.';
+    // Stap 1: barcode → release ID
+    const search = await mbFetch('release?query=barcode:' + code + '&limit=1');
+    const rel = search.releases?.[0];
+    if (!rel) {
+      feedback.textContent = '⚠ Barcode niet gevonden in MusicBrainz ('+code+'). Vul handmatig in.';
       feedback.style.color = 'var(--muted)';
+      return;
     }
+
+    feedback.textContent = '⏳ Details ophalen voor "' + rel.title + '"…';
+
+    // Stap 2: uitgebreide release details
+    const detail = await mbFetch(
+      'release/' + rel.id +
+      '?inc=artists+labels+recordings+release-groups+artist-credits+media+genres'
+    );
+
+    // Artiest
+    const artist = detail['artist-credit']?.[0]?.artist?.name || rel['artist-credit']?.[0]?.artist?.name || '';
+
+    // Jaar — gebruik originele release jaar indien beschikbaar
+    const releaseDate = detail.date || rel.date || '';
+    const year = releaseDate.match(/\b(19|20)\d{2}\b/)?.[0] || '';
+    const origYear = detail['release-group']?.['first-release-date']?.match(/\b(19|20)\d{2}\b/)?.[0] || '';
+
+    // Label
+    const labelInfo = detail['label-info']?.[0];
+    const label = labelInfo?.label?.name || '';
+    const catNo = labelInfo?.['catalog-number'] || '';
+
+    // Medium / drager type
+    const medium = detail.media?.[0];
+    const mbFormat = medium?.format || '';
+    const discs = detail.media?.length || 1;
+    let deviceType = MB_FORMAT_MAP[mbFormat] || '';
+    // Dubbel CD / LP detectie
+    if (discs === 2 && deviceType === 'CD') deviceType = 'Dubbel CD';
+    if (discs === 2 && deviceType === 'LP')  deviceType = 'Dubbel LP';
+
+    // Tracks
+    const tracks = medium?.['track-count'] || detail['track-count'] || '';
+
+    // Genre via release-group tags
+    const tags = detail['release-group']?.tags || detail.tags || [];
+    const genre = tags.sort((a,b)=>b.count-a.count).slice(0,3).map(t=>t.name).join(' | ');
+
+    // Barcode bevestiging
+    const barcode = detail.barcode || code;
+
+    // Packaging → extra info
+    const packaging = detail.packaging || '';
+
+    // Stap 3: componist/producer via recordings (eerste 3 tracks)
+    let composer = '', songwriter = '', producer = '';
+    const recordings = detail.media?.[0]?.tracks?.slice(0,5) || [];
+    for (const track of recordings) {
+      if (composer && songwriter && producer) break;
+      try {
+        const rec = await mbFetch('recording/' + track.recording?.id + '?inc=artist-rels');
+        const rels = rec.relations || [];
+        for (const r of rels) {
+          const name = r.artist?.name || '';
+          if (!composer && (r.type==='composer' || r.type==='music'))    composer  = name;
+          if (!songwriter && (r.type==='lyricist' || r.type==='writer')) songwriter = name;
+          if (!producer && r.type==='producer')                           producer  = name;
+        }
+      } catch(e) {}
+    }
+
+    // Vul alle formuliervelden in
+    const set = (id, val) => { const el=document.getElementById(id); if(el && val) el.value = val; };
+    set('newArtist',    artist);
+    set('newTitle',     detail.title || rel.title);
+    set('newYear',      year);
+    set('newOrigYear',  origYear !== year ? origYear : '');
+    set('newLabel',     label);
+    set('newTracks',    tracks);
+    set('newGenre',     genre);
+    set('newBarcode',   barcode);
+    set('newComposer',  composer);
+    set('newProducer',  producer);
+
+    // Device type via dropdown
+    if (deviceType) {
+      const sel = document.getElementById('newDeviceType');
+      if (sel) {
+        // Kijk of het type al bestaat in de lijst
+        const opt = [...sel.options].find(o => o.value === deviceType);
+        if (opt) sel.value = deviceType;
+        // Anders: voeg toe als nieuw type
+        else if (deviceType) {
+          await addDoc(userCol('deviceTypes'), {name: deviceType, order: 99});
+          setTimeout(() => { const s=document.getElementById('newDeviceType'); if(s) s.value=deviceType; }, 500);
+        }
+      }
+    }
+
+    // Bouw samenvatting
+    const info = [
+      artist, detail.title,
+      year, deviceType, discs>1?discs+'x':'',
+      tracks?tracks+' tracks':'',
+      genre
+    ].filter(Boolean).join(' · ');
+
+    feedback.innerHTML = '✓ Gevonden: ' + info +
+      (composer?'<br><small style="color:var(--muted)">Componist: '+composer+'</small>':'') +
+      (producer?'<br><small style="color:var(--muted)">Producer: '+producer+'</small>':'');
+    feedback.style.color = 'var(--green)';
+
+    document.getElementById('newArtist').scrollIntoView({behavior:'smooth', block:'center'});
+
   } catch(e) {
-    feedback.textContent = '⚠ Zoeken mislukt. Vul handmatig in.';
+    feedback.textContent = '⚠ Fout bij ophalen: ' + e.message + '. Vul handmatig in.';
     feedback.style.color = 'var(--accent)';
+    console.error('Barcode lookup error:', e);
   }
 }
 
-// ── ALBUM CRUD (bijgewerkt met device/storage) ────────────────────
+window.lookupByTitle = async function() {
+  const artist = document.getElementById('newArtist').value.trim();
+  const title  = document.getElementById('newTitle').value.trim();
+  const feedback = document.getElementById('scanFeedback');
+  if (!artist && !title) { toast('Vul eerst artiest en/of titel in.','err'); return; }
+  feedback.textContent = '🔍 MusicBrainz zoeken…';
+  feedback.style.color = 'var(--muted)';
+  try {
+    const q = encodeURIComponent((artist?'artist:'+artist+' ':'') + (title?'release:'+title:''));
+    const search = await mbFetch('release?query='+q+'&limit=1');
+    const rel = search.releases?.[0];
+    if (!rel) {
+      feedback.textContent = '⚠ Niet gevonden. Vul handmatig in.';
+      return;
+    }
+    // Gebruik dezelfde uitgebreide lookup als bij barcode
+    const barcode = rel.barcode || '';
+    if (barcode) {
+      document.getElementById('newBarcode').value = barcode;
+    }
+    // Detail ophalen
+    const detail = await mbFetch('release/'+rel.id+'?inc=artists+labels+recordings+release-groups+artist-credits+media+genres');
+    const year = (detail.date||'').match(/\b(19|20)\d{2}\b/)?.[0]||'';
+    const origYear = detail['release-group']?.['first-release-date']?.match(/\b(19|20)\d{2}\b/)?.[0]||'';
+    const label = detail['label-info']?.[0]?.label?.name||'';
+    const medium = detail.media?.[0];
+    const mbFormat = medium?.format||'';
+    const discs = detail.media?.length||1;
+    let deviceType = MB_FORMAT_MAP[mbFormat]||'';
+    if (discs===2 && deviceType==='CD') deviceType='Dubbel CD';
+    if (discs===2 && deviceType==='LP') deviceType='Dubbel LP';
+    const tracks = medium?.['track-count']||detail['track-count']||'';
+    const tags = (detail['release-group']?.tags||detail.tags||[]).sort((a,b)=>b.count-a.count).slice(0,3).map(t=>t.name).join(' | ');
+    const foundArtist = detail['artist-credit']?.[0]?.artist?.name||'';
+
+    const set = (id,val) => { const el=document.getElementById(id); if(el&&val) el.value=val; };
+    if (!artist) set('newArtist', foundArtist);
+    if (!title) set('newTitle', detail.title||rel.title);
+    set('newYear',     year);
+    set('newOrigYear', origYear!==year?origYear:'');
+    set('newLabel',    label);
+    set('newTracks',   tracks);
+    set('newGenre',    tags);
+    if (deviceType) {
+      const sel = document.getElementById('newDeviceType');
+      const opt = sel && [...sel.options].find(o=>o.value===deviceType);
+      if (opt) sel.value = deviceType;
+    }
+    // Componist/producer
+    let composer='', producer='';
+    const recordings = detail.media?.[0]?.tracks?.slice(0,3)||[];
+    for (const track of recordings) {
+      if (composer && producer) break;
+      try {
+        const rec = await mbFetch('recording/'+track.recording?.id+'?inc=artist-rels');
+        for (const r of rec.relations||[]) {
+          if (!composer && r.type==='composer') composer=r.artist?.name||'';
+          if (!producer && r.type==='producer') producer=r.artist?.name||'';
+        }
+      } catch(e) {}
+    }
+    set('newComposer', composer);
+    set('newProducer', producer);
+    feedback.textContent = '✓ Gegevens ingevuld voor "' + (detail.title||rel.title) + '"';
+    feedback.style.color = 'var(--green)';
+  } catch(e) {
+    feedback.textContent = '⚠ Fout: ' + e.message;
+    feedback.style.color = 'var(--accent)';
+  }
+};
+
 window.saveNewAlbum = async function() {
   const artist = document.getElementById('newArtist').value.trim();
   const title  = document.getElementById('newTitle').value.trim();
