@@ -1,4 +1,4 @@
-<!-- MuziekApp V48 | index.html | Laatste wijziging: V48 - Deezer Android intent URL fix (https scheme), correcte versieheader -->
+<!-- MuziekApp V49 | index.html | Laatste wijziging: V49 - Deezer terug naar window.open, formulier compact op mobiel, track-row overflow fix -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -354,9 +354,15 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
   .panel-btns { gap:4px; }
   .pbtn { font-size:10px; padding:5px 6px; }
 
-  /* Forms */
-  .form-grid { grid-template-columns:1fr; }
-  .form-group.full { grid-column:1; }
+  /* Forms mobiel compact */
+  .beheer-card-body { padding:0 12px 12px; }
+  .form-grid { gap:7px; grid-template-columns:1fr 1fr; }
+  .form-input { padding:7px 9px; font-size:12px; }
+  .form-label { font-size:10px; }
+  .form-group.full { grid-column:1/-1; }
+  /* Minder-belangrijke velden smaller tonen */
+  #newLength, #newBarcode, #newOrigYear, #newComposer, #newProducer, #newMusician { font-size:11px; padding:5px 8px; }
+
 
   /* Modals */
   .modal { width:100vw !important; max-width:100vw; border-radius:14px 14px 0 0; margin:0; position:fixed; bottom:50px; left:0; right:0; max-height:80vh; }
@@ -365,8 +371,11 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
   /* Overige */
   .view-header { padding:6px 10px 2px; }
   .view-header h2 { font-size:15px; }
-  .track-list-wrap { padding-left:20px; }
-  .track-add { opacity:1 !important; }
+  .track-list-wrap { padding-left:4px; overflow:hidden; }
+  .track-row { gap:4px; padding:3px 4px 3px 0; }
+  .track-dur { min-width:28px; font-size:10px; }
+  .track-add { opacity:1 !important; font-size:10px; padding:2px 4px; }
+  .track-dz  { font-size:14px; padding:2px 2px; }
   .pl-mode-toggle { display:block; }
 }
 
@@ -2883,24 +2892,10 @@ window.addTrackToPlaylist = async function(albumId, tid, trackTitle, artist) {
 };
 
 // ── DEEZER ────────────────────────────────────────────────────────
-// Deezer openen — juiste deep link per platform
+// Deezer openen — simpel window.open (werkt op alle platforms)
 function openDeezerUrl(query) {
-  const encoded = encodeURIComponent(query);
-  const webUrl  = 'https://www.deezer.com/search/' + encoded;
-  const ua = navigator.userAgent;
-
-  if (/Android/i.test(ua)) {
-    // Android Intent URL — opent Deezer app direct, fallback naar website
-    // Let op: zoekterm NIET extra encoderen in het intent path
-    const intentUrl = 'intent://www.deezer.com/search/' + encoded +
-      '#Intent;scheme=https;package=deezer.android.app;S.browser_fallback_url=' +
-      encodeURIComponent(webUrl) + ';end';
-    window.location.href = intentUrl;
-  } else if (/iPhone|iPad|iPod/i.test(ua)) {
-    window.location.href = webUrl;
-  } else {
-    window.open(webUrl, '_blank');
-  }
+  const url = 'https://www.deezer.com/search/' + encodeURIComponent(query);
+  window.open(url, '_blank');
 }
 
 window.openAlbumDeezer = function(aid) {
