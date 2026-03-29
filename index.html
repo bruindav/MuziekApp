@@ -1,4 +1,4 @@
-<!-- MuziekApp V52 | index.html | Laatste wijziging: V52 - Tracklist ophalen: MusicBrainz → Deezer → Discogs (derde stap voor obscure cd's) -->
+<!-- MuziekApp V53 | index.html | Laatste wijziging: V53 - Detail popup mobiel fix: kruisje altijd zichtbaar, knoppen naast elkaar, Deezer paars equalizer-icoon -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -365,8 +365,14 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 
 
   /* Modals */
-  .modal { width:100vw !important; max-width:100vw; border-radius:14px 14px 0 0; margin:0; position:fixed; bottom:50px; left:0; right:0; max-height:80vh; }
+  .modal { width:100vw !important; max-width:100vw; border-radius:14px 14px 0 0; margin:0; position:fixed; bottom:50px; left:0; right:0; max-height:82vh; }
   .overlay { align-items:flex-end; }
+  /* Header altijd zichtbaar, kruisje groot genoeg voor touch */
+  .modal-hdr { padding:14px 16px; position:sticky; top:0; z-index:10; background:var(--surface); }
+  .modal-close { font-size:22px; padding:6px 10px; min-width:40px; min-height:40px; display:flex; align-items:center; justify-content:center; }
+  /* Footer knoppen: gelijke breedte naast elkaar */
+  #detailOverlay .modal-foot { flex-direction:row !important; justify-content:stretch; gap:6px; padding:10px 12px; }
+  #detailOverlay .modal-foot button { flex:1; padding:9px 6px; font-size:12px; white-space:nowrap; }
 
   /* Overige */
   .view-header { padding:6px 10px 2px; }
@@ -887,7 +893,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     </div>
     <div class="modal-body" id="detailBody"></div>
     <div class="modal-foot" style="flex-wrap:wrap;gap:6px">
-      <button class="btn-secondary" style="color:var(--deezer);border-color:var(--deezer)" id="detailDeezerBtn" onclick="openAlbumDeezerFromDetail()">🎧 Deezer</button>
+      <button class="btn-secondary" style="color:var(--deezer);border-color:var(--deezer)" id="detailDeezerBtn" onclick="openAlbumDeezerFromDetail()"><svg width="14" height="14" viewBox="0 0 24 24" fill="var(--deezer)" style="vertical-align:-2px;margin-right:5px"><rect x="1" y="10" width="3" height="10" rx="1.5"/><rect x="6" y="6" width="3" height="14" rx="1.5"/><rect x="11" y="2" width="3" height="18" rx="1.5"/><rect x="16" y="6" width="3" height="14" rx="1.5"/><rect x="21" y="10" width="3" height="10" rx="1.5"/></svg>Deezer</button>
       <button class="btn-secondary" style="color:var(--accent);border-color:var(--accent)" id="detailDeleteBtn" onclick="closeModal('detailOverlay');confirmDeleteAlbum(editingAlbumId)">🗑 Verwijderen</button>
       <button class="btn-primary" id="detailEditBtn" onclick="openEditFromDetail()">✏ Bewerken</button>
     </div>
