@@ -1,4 +1,4 @@
-<!-- MuziekApp V49 | index.html | Laatste wijziging: V49 - Deezer terug naar window.open, formulier compact op mobiel, track-row overflow fix -->
+<!-- MuziekApp V52 | index.html | Laatste wijziging: V52 - Tracklist ophalen: MusicBrainz → Deezer → Discogs (derde stap voor obscure cd's) -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -2735,6 +2735,7 @@ function renderTrackList(album) {
   const cache = trackCache[album.id];
   if (!cache || cache.status==='loading') return '<div class="track-list-loading">⏳ MusicBrainz zoeken…</div>';
   if (cache.status==='loading-deezer') return '<div class="track-list-loading">⏳ Deezer proberen…</div>';
+  if (cache.status==='loading-discogs') return '<div class="track-list-loading">⏳ Discogs proberen…</div>';
   if (cache.status==='error') {
     return `<div class="track-list-loading">
       Niet gevonden.
@@ -2779,6 +2780,8 @@ function renderTrackList(album) {
 
   const src = cache.source==='deezer'
     ? `<a href="https://www.deezer.com/search/${encodeURIComponent(album.artist+' '+album.title)}" target="_blank">Deezer</a>`
+    : cache.source==='discogs'
+    ? `<a href="https://www.discogs.com/search/?q=${encodeURIComponent(album.artist+' '+album.title)}&type=release" target="_blank">Discogs</a>`
     : `<a href="https://musicbrainz.org/release/${selRelease?.id}" target="_blank">MusicBrainz</a>`;
   return picker + trackRows + `<div class="track-mb-link">Bron: ${src}</div>`;
 }
@@ -2790,6 +2793,7 @@ window.selectRelease = function(aid, idx) {
   rerenderTrackWrap(aid, album);
   const rel = trackCache[aid].releases[idx];
   if (rel?.dzId) loadDeezerTracks(aid, idx);
+  else if (rel?.dcId) loadDiscogsTracks(aid, idx);
   else loadReleaseTracks(aid, idx);
 };
 
@@ -2854,9 +2858,70 @@ async function fetchTracksFromDeezer(aid, album) {
     rerenderTrackWrap(aid, album);
     await loadDeezerTracks(aid, 0);
   } catch(e) {
+    // Deezer ook niets → probeer Discogs als derde stap
+    await fetchTracksFromDiscogs(aid, album);
+  }
+}
+
+async function fetchTracksFromDiscogs(aid, album) {
+  trackCache[aid] = { status:'loading-discogs', releases:[], selectedIdx:0 };
+  rerenderTrackWrap(aid, album);
+  try {
+    // Discogs heeft geen CORS-vrije JSON API zonder key, maar de search-endpoint
+    // accepteert anonieme requests met een User-Agent header (rate-limited)
+    const q = encodeURIComponent(cleanForSearch(album.artist)+' '+cleanForSearch(album.title));
+    const res = await fetch(
+      'https://api.discogs.com/database/search?q='+q+'&type=release&per_page=5&page=1',
+      { headers:{ 'User-Agent':'MuziekApp/1.0 +https://bruindav.github.io' } }
+    );
+    const data = await res.json();
+    const results = data.results||[];
+    if (!results.length) throw new Error('niets');
+
+    // Bouw releases op uit Discogs resultaten
+    const releases = results.slice(0,5).map(r=>({
+      id: 'dc_'+r.id,
+      dcId: r.id,
+      dcMasterId: r.master_id||null,
+      title: r.title||album.title,
+      date: r.year?String(r.year):'',
+      country: r.country||'',
+      label: Array.isArray(r.label)?r.label[0]:(r.label||''),
+      tracks: [],
+      source: 'discogs'
+    }));
+    trackCache[aid] = { status:'ok', releases, selectedIdx:0, source:'discogs' };
+    rerenderTrackWrap(aid, album);
+    await loadDiscogsTracks(aid, 0);
+  } catch(e) {
+    // Alle drie hebben niets gevonden
     trackCache[aid] = { status:'error', releases:[], selectedIdx:0 };
     rerenderTrackWrap(aid, album);
   }
+}
+
+async function loadDiscogsTracks(aid, idx) {
+  const cache = trackCache[aid];
+  if (!cache?.releases[idx]) return;
+  const rel = cache.releases[idx];
+  if (rel.tracks.length) return;
+  try {
+    const res = await fetch(
+      'https://api.discogs.com/releases/'+rel.dcId,
+      { headers:{ 'User-Agent':'MuziekApp/1.0 +https://bruindav.github.io' } }
+    );
+    const data = await res.json();
+    const tracklist = data.tracklist||[];
+    let num = 1;
+    rel.tracks = tracklist
+      .filter(t => t.type_==='track' || !t.type_)
+      .map(t => ({
+        num: num++,
+        title: t.title,
+        dur: t.duration||''
+      }));
+  } catch(e) { rel.tracks=[]; }
+  rerenderTrackWrap(aid, albums.find(a=>a.id===aid));
 }
 
 async function loadDeezerTracks(aid, idx) {
