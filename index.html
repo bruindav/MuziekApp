@@ -465,10 +465,16 @@ tbody tr:hover .row-actions { opacity:1; }
 .track-num { font-size:11px; color:var(--muted); width:20px; text-align:right; flex-shrink:0; }
 .track-title { flex:1; font-size:12px; }
 .track-dur { font-size:11px; color:var(--muted); flex-shrink:0; min-width:34px; text-align:right; }
-.track-add { opacity:0; transition:opacity .15s; background:none; border:1px solid var(--green); color:var(--green); cursor:pointer; font-size:10px; padding:2px 6px; border-radius:4px; white-space:nowrap; font-family:'DM Sans',sans-serif; }
-.track-row:hover .track-add { opacity:1; }
-.track-row.in-pl .track-title { color:var(--green); }
+.track-add { opacity:0; transition:opacity .15s; background:none; border:1px solid var(--green); color:var(--green); cursor:pointer; font-size:11px; padding:2px 6px; border-radius:4px; white-space:nowrap; font-family:'DM Sans',sans-serif; }
+.track-dz  { opacity:0; transition:opacity .15s; background:none; border:none; color:var(--deezer); cursor:pointer; font-size:16px; padding:2px 4px; border-radius:4px; }
+.track-row:hover .track-add,
+.track-row:hover .track-dz { opacity:1; }
 .track-row.in-pl .track-add { opacity:.4; cursor:default; }
+/* track-dz altijd zichtbaar op hover, ook in-pl */
+@media (max-width:768px) {
+  .track-add { opacity:1 !important; }
+  .track-dz  { opacity:1 !important; }
+}
 .track-mb-link { font-size:10px; color:var(--muted); margin-top:6px; }
 .track-mb-link a { color:var(--deezer); text-decoration:none; }
 .release-picker { margin-bottom:8px; }
@@ -1786,14 +1792,21 @@ window.openCtxMenu = function(albumId, event) {
     '</div>' +
     '<div class="ctx-item" onclick="closeCtxMenu();openDetailModal(\'' + albumId + '\')"><span class="ctx-icon">ℹ</span> Details</div>' +
     '<div class="ctx-item" onclick="closeCtxMenu();openEditModal(\'' + albumId + '\')"><span class="ctx-icon">✏</span> Wijzigen</div>' +
+    '<div class="ctx-item" onclick="closeCtxMenu();openAlbumDeezer(\'' + albumId + '\')"><span class="ctx-icon" style="color:var(--deezer)">🎧</span> <span style="color:var(--deezer)">Afspelen op Deezer</span></div>' +
     '<div class="ctx-item" onclick="closeCtxMenu();ctxAddToPlaylist(\'' + albumId + '\')"><span class="ctx-icon">' + (inPl?'✓':'+') + '</span> ' + (inPl?'Al in playlist':'Toevoegen aan playlist') + '</div>' +
     '<div class="ctx-item danger" onclick="closeCtxMenu();confirmDeleteAlbum(\'' + albumId + '\')"><span class="ctx-icon">🗑</span> Verwijderen</div>';
   menu.style.display = 'block';
-  const x = event.touches ? event.changedTouches[0].clientX : event.clientX;
-  const y = event.touches ? event.changedTouches[0].clientY : event.clientY;
-  const mw = 220, mh = 220;
-  menu.style.left = Math.min(x, window.innerWidth  - mw - 10) + 'px';
-  menu.style.top  = Math.min(y, window.innerHeight - mh - 10) + 'px';
+  // Desktop: float naast cursor. Mobiel: bottom sheet via CSS
+  if (window.innerWidth > 768) {
+    const x = event.touches ? event.changedTouches[0].clientX : event.clientX;
+    const y = event.touches ? event.changedTouches[0].clientY : event.clientY;
+    const mw = 220, mh = 240;
+    menu.style.left = Math.min(x, window.innerWidth  - mw - 10) + 'px';
+    menu.style.top  = Math.min(y, window.innerHeight - mh - 10) + 'px';
+  } else {
+    menu.style.left = '';
+    menu.style.top  = '';
+  }
   document.getElementById('ctxOverlay').style.display = 'block';
 };
 
@@ -2534,11 +2547,15 @@ function renderTrackList(album) {
       <span class="track-num">${t.num}</span>
       <span class="track-title">${esc(t.title)}</span>
       <span class="track-dur">${t.dur||''}</span>
+      <button class="track-dz"
+        data-title="${esc(t.title)}" data-artist="${esc(album.artist)}"
+        onclick="openTrackDeezer(this.dataset.title,this.dataset.artist)"
+        title="Afspelen op Deezer">🎧</button>
       <button class="track-add"
         data-album-id="${album.id}" data-tid="${tid}"
         data-title="${esc(t.title)}" data-artist="${esc(album.artist)}"
         onclick="openTrackPlPopup(this.dataset.albumId,this.dataset.tid,this.dataset.title,this.dataset.artist)"
-        ${inPl?'disabled':''}>${inPl?'✓':'+ Voeg toe'}</button>
+        ${inPl?'disabled':''}>${inPl?'✓':'+'}</button>
     </div>`;
   }).join('') : '<div class="track-list-loading" style="color:var(--muted)">Geen tracks.</div>';
 
