@@ -1,4 +1,4 @@
-<!-- MuziekApp V42 | index.html | Laatste wijziging: V42 - Context menu bij klikken op album (mobiel), album toevoegen card standaard dicht -->
+<!-- MuziekApp V48 | index.html | Laatste wijziging: V48 - Deezer Android intent URL fix (https scheme), correcte versieheader -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -2890,14 +2890,14 @@ function openDeezerUrl(query) {
   const ua = navigator.userAgent;
 
   if (/Android/i.test(ua)) {
-    // Android: gebruik intent URL — opent app direct als geïnstalleerd, anders website
-    const intentUrl = 'intent://search/' + encoded +
-      '#Intent;scheme=deezer;package=deezer.android.app;S.browser_fallback_url=' +
+    // Android Intent URL — opent Deezer app direct, fallback naar website
+    // Let op: zoekterm NIET extra encoderen in het intent path
+    const intentUrl = 'intent://www.deezer.com/search/' + encoded +
+      '#Intent;scheme=https;package=deezer.android.app;S.browser_fallback_url=' +
       encodeURIComponent(webUrl) + ';end';
     window.location.href = intentUrl;
   } else if (/iPhone|iPad|iPod/i.test(ua)) {
-    // iOS: probeer universal link, val terug op website
-    window.location.href = 'https://www.deezer.com/search/' + encoded;
+    window.location.href = webUrl;
   } else {
     window.open(webUrl, '_blank');
   }
