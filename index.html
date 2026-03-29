@@ -1,4 +1,4 @@
-<!-- MuziekApp V57 | index.html | Laatste wijziging: V57 - Popup hoogte fix voor Vivaldi/mobiele browsers (--vh correctie), onbekende artiesten naar onderaan lijst -->
+<!-- MuziekApp V58 | index.html | Laatste wijziging: V58 - Kolom tracks vervangen door type drager, selectiebalk (#geselecteerd + playlist-knop) verwijderd -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -675,12 +675,10 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       </div>
       <select class="filter-sel" id="genreFilter" onchange="render()"><option value="">Alle genres</option></select>
       <select class="filter-sel" id="yearFilter" onchange="render()" style="max-width:90px"><option value="">Alle jaren</option></select>
-      <button class="add-sel-btn" id="addSelBtn" onclick="addSelected()" style="display:none">+ Voeg toe</button>
       <button class="pl-mode-toggle" id="plModeToggle" onclick="togglePlaylistMode()">🎵 Playlist</button>
     </div>
     <div class="view-header">
       <h2 id="viewTitle">Alle Albums</h2>
-      <span class="sel-count" id="selCount"></span>
     </div>
     <!-- Desktop letterbalk -->
     <div class="alpha-bar" id="alphaBar"></div>
@@ -1482,7 +1480,7 @@ window.render = function() {
       ${th('artist','Artiest')}
       ${th('title','Album')}
       ${th('year','Jaar')}
-      ${th('tracks','#')}
+      ${th('deviceType','Drager')}
       ${th('length','Lengte')}
       <th>Genre</th>
       <th style="width:70px"></th>
@@ -1512,7 +1510,7 @@ window.render = function() {
         <td onclick="toggleSel('${a.id}')"><strong style="font-weight:500">${esc(a.artist)}</strong></td>
         <td onclick="toggleSel('${a.id}')">${esc(a.title)}${a.label?'<span style="font-size:10px;color:var(--muted);display:block">'+esc(a.label)+'</span>':''}</td>
         <td onclick="toggleSel('${a.id}')" style="color:var(--muted)">${a.year||''}</td>
-        <td onclick="toggleSel('${a.id}')" style="color:var(--muted)">${a.tracks||''}</td>
+        <td onclick="toggleSel('${a.id}')" style="color:var(--muted);font-size:11px">${a.deviceType||''}</td>
         <td onclick="toggleSel('${a.id}')" style="color:var(--muted);font-size:11px">${a.length||''}</td>
         <td onclick="toggleSel('${a.id}')">${a.genreFirst?'<span class="genre-tag" title="'+esc(a.genre)+'">'+esc(a.genreFirst)+'</span>':''}</td>
         <td>
@@ -1540,13 +1538,7 @@ window.sortBy = function(col) { sortAsc = sortCol===col?!sortAsc:true; sortCol=c
 window.toggleSel = function(id) { if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id); render(); };
 
 function updateSelUI() {
-  const n = selectedIds.size;
-  const btn = document.getElementById('addSelBtn');
-  const cnt = document.getElementById('selCount');
-  if (n>0 && activePlaylistId) { btn.style.display='block'; btn.className='add-sel-btn active'; btn.textContent='+ '+n+' toevoegen'; }
-  else if (n>0) { btn.style.display='block'; btn.className='add-sel-btn'; btn.textContent=n+' geselecteerd'; }
-  else btn.style.display='none';
-  cnt.textContent = n>0 ? n+' geselecteerd' : '';
+  // Selectiebalk verwijderd — selectie werkt nog intern maar wordt niet meer getoond
 }
 
 // ── PLAYLISTS ─────────────────────────────────────────────────────
