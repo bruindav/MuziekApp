@@ -1,4 +1,4 @@
-<!-- MuziekApp V49 | index.html | Laatste wijziging: V49 - Deezer terug naar window.open, formulier compact op mobiel, track-row overflow fix -->
+<!-- MuziekApp V49 TEST | index.html | Laatste wijziging: V49 - Deezer terug naar window.open, formulier compact op mobiel, track-row overflow fix -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -3078,6 +3078,45 @@ window.addEventListener('resize', applyMobileLayout);
 // App start — loginScreen is zichtbaar (display:flex in HTML)
 // switchTab wordt aangeroepen door showApp() na succesvolle login
 applyMobileLayout();
+</script>
+  <div id="deezerPopup" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--surface); border: 1px solid var(--border); padding: 20px; z-index: 1000; border-radius: 8px; width: 80%; max-width: 400px;">
+    <h3 style="margin-bottom: 15px;">Kies een Deezer URL-variant</h3>
+    <button onclick="openDeezerUrlVariant('search')" style="display: block; width: 100%; padding: 10px; margin-bottom: 10px; background: var(--deezer); color: white; border: none; border-radius: 4px;">Algemene Zoekopdracht</button>
+    <button onclick="openDeezerUrlVariant('tracks')" style="display: block; width: 100%; padding: 10px; margin-bottom: 10px; background: var(--deezer); color: white; border: none; border-radius: 4px;">Zoekopdracht voor Tracks</button>
+    <button onclick="openDeezerUrlVariant('deeplink')" style="display: block; width: 100%; padding: 10px; margin-bottom: 10px; background: var(--deezer); color: white; border: none; border-radius: 4px;">Deezer Deep Link (als track ID bekend)</button>
+    <button onclick="document.getElementById('deezerPopup').style.display = 'none'" style="display: block; width: 100%; padding: 10px; background: var(--muted); color: white; border: none; border-radius: 4px;">Annuleren</button>
+</div>
+  <script>
+function showDeezerPopup(title, artist) {
+    window.currentDeezerTitle = title;
+    window.currentDeezerArtist = artist;
+    document.getElementById('deezerPopup').style.display = 'block';
+}
+
+function openDeezerUrlVariant(variant) {
+    let url;
+    const title = window.currentDeezerTitle;
+    const artist = window.currentDeezerArtist;
+
+    switch(variant) {
+        case 'search':
+            url = 'https://www.deezer.com/search/' + encodeURIComponent(artist + ' ' + title);
+            break;
+        case 'tracks':
+            url = 'https://www.deezer.com/search/tracks?q=' + encodeURIComponent(artist + ' ' + title);
+            break;
+        case 'deeplink':
+            url = 'deezer://www.deezer.com/track/<track_id>'; // Vervang <track_id> met een daadwerkelijke track ID
+            break;
+    }
+
+    window.open(url, '_blank');
+    document.getElementById('deezerPopup').style.display = 'none';
+}
+
+window.openTrackDeezer = function(title, artist) {
+    showDeezerPopup(title, artist);
+};
 </script>
 </body>
 </html>
