@@ -1,4 +1,4 @@
-<!-- MuziekApp V53 | index.html | Laatste wijziging: V53 - Detail popup mobiel fix: kruisje altijd zichtbaar, knoppen naast elkaar, Deezer paars equalizer-icoon -->
+<!-- MuziekApp V54 | index.html | Laatste wijziging: V54 - Back-button afgevangen in PWA via History API (modal sluiten, tab terug, nooit uit app) -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -1337,8 +1337,9 @@ function startListeners() {
 }
 
 // ── TABS ──────────────────────────────────────────────────────────
-window.switchTab = function(tab) {
+window.switchTab = function(tab, pushHistory=true) {
   currentTab = tab;
+  if (pushHistory) history.pushState({ tab }, '');
   document.querySelectorAll('.tab').forEach((t,i) => {
     t.classList.toggle('active', ['bibliotheek','playlists','beheer'][i] === tab);
   });
@@ -3154,10 +3155,22 @@ window.onPanelDrop = async function(e,targetAid) {
 };
 
 // ── MODALS ────────────────────────────────────────────────────────
-function openModal(id) { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  // Push history entry zodat back-button de modal sluit i.p.v. de app verlaat
+  history.pushState({ modal: id }, '');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
 window.closeModal = closeModal;
-document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
+  if(e.target===o) {
+    o.classList.remove('open');
+    // Sync history terug als modal via overlay-klik gesloten wordt
+    if (history.state?.modal) history.back();
+  }
+}));
 
 function showConfirm(title, msg, onOk) {
   document.getElementById('confirmTitle').textContent = title;
@@ -3206,6 +3219,33 @@ function applyMobileLayout() {
   switchTab(currentTab);
 }
 window.addEventListener('resize', applyMobileLayout);
+
+// ── BACK-BUTTON AFVANGEN (PWA) ────────────────────────────────────
+// Zet een basis history-entry zodat er altijd iets is om naar terug te gaan
+history.replaceState({ tab: 'bibliotheek' }, '');
+
+window.addEventListener('popstate', function(e) {
+  // 1) Is er een open modal? Sluit die.
+  const openModal = document.querySelector('.overlay.open');
+  if (openModal) {
+    openModal.classList.remove('open');
+    // Zorg dat we niet verder teruggaan — push een nieuwe entry voor de huidige tab
+    history.pushState({ tab: currentTab }, '');
+    return;
+  }
+
+  // 2) Geen modal open — navigeer binnen de app op basis van de state
+  const tabs = ['bibliotheek', 'playlists', 'beheer'];
+  const toTab = e.state?.tab;
+  if (toTab && tabs.includes(toTab)) {
+    // Schakel tab zonder nieuwe history entry (voorkomt loop)
+    window.switchTab(toTab, false);
+    return;
+  }
+
+  // 3) Geen bruikbare state — we zitten al op de beginpagina, blijf in de app
+  history.pushState({ tab: currentTab }, '');
+});
 
 // App start — loginScreen is zichtbaar (display:flex in HTML)
 // switchTab wordt aangeroepen door showApp() na succesvolle login
