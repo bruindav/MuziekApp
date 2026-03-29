@@ -873,7 +873,6 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     </div>
     <div class="modal-body" id="detailBody"></div>
     <div class="modal-foot" style="flex-wrap:wrap;gap:6px">
-      <button class="btn-secondary" onclick="closeModal('detailOverlay')">Sluiten</button>
       <button class="btn-secondary" style="color:var(--deezer);border-color:var(--deezer)" id="detailDeezerBtn" onclick="openAlbumDeezerFromDetail()">🎧 Deezer</button>
       <button class="btn-secondary" style="color:var(--accent);border-color:var(--accent)" id="detailDeleteBtn" onclick="closeModal('detailOverlay');confirmDeleteAlbum(editingAlbumId)">🗑 Verwijderen</button>
       <button class="btn-primary" id="detailEditBtn" onclick="openEditFromDetail()">✏ Bewerken</button>
@@ -2392,17 +2391,12 @@ window.openDetailModal = async function(id) {
     ${extras?`<div class="detail-grid" style="margin-top:0">${extras}</div>`:''}
     <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
       <div style="font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Tracks</div>
-      <div id="detailTrackWrap" style="font-size:13px;color:var(--muted)">⏳ Tracks laden…</div>
+      <div class="track-list-wrap" id="trackWrap_${a.id}">${renderTrackList(a)}</div>
     </div>`;
 
-  // Laad tracks asynchroon
-  try {
-    const trackHtml = await renderTrackListAsync(a);
-    const tw = document.getElementById('detailTrackWrap');
-    if (tw) tw.innerHTML = trackHtml;
-  } catch(e) {
-    const tw = document.getElementById('detailTrackWrap');
-    if (tw) tw.innerHTML = '<div style="color:var(--muted);font-size:12px">Tracks niet beschikbaar.</div>';
+  // Laad tracks als nog niet in cache
+  if (!trackCache[a.id] || trackCache[a.id].status === 'error') {
+    fetchTracks(a.id);
   }
 };
 
@@ -2544,29 +2538,6 @@ window.toggleExpand = function(aid, e) {
   render();
 };
 
-// Async versie voor gebruik in detail modal
-async function renderTrackListAsync(album) {
-  const aid = album.id;
-  if (!trackCache[aid]) await fetchTracks(aid);
-  const cache = trackCache[aid];
-  if (!cache || !cache.tracks?.length) return '<div style="color:var(--muted);font-size:12px">Geen tracks gevonden.</div>';
-  const plIds = activePlaylistId
-    ? new Set((playlists.find(p=>p.id===activePlaylistId)||{ids:[]}).ids)
-    : new Set();
-  return cache.tracks.map(t => {
-    const tid = album.id+'_t'+t.num;
-    const inPl = plIds.has(tid);
-    return `<div class="track-row ${inPl?'in-pl':''}">
-      <span class="track-num">${t.num}</span>
-      <span class="track-title">${esc(t.title)}</span>
-      <span class="track-dur">${t.dur||''}</span>
-      <button class="track-dz" onclick="openTrackDeezer('${esc(t.title).replace(/'/g,"\\'")}','${esc(album.artist).replace(/'/g,"\\'")}')">🎧</button>
-      <button class="track-add" ${inPl?'disabled':''} onclick="openTrackPlPopup('${album.id}','${tid}','${esc(t.title).replace(/'/g,"\\'")}','${esc(album.artist).replace(/'/g,"\\'")}')">
-        ${inPl?'✓':'+'}
-      </button>
-    </div>`;
-  }).join('');
-}
 
 function renderTrackList(album) {
   const cache = trackCache[album.id];
@@ -2710,6 +2681,7 @@ async function loadDeezerTracks(aid, idx) {
 }
 
 function rerenderTrackWrap(aid, album) {
+  // Update hoofdscherm track wrap
   const wrap = document.getElementById('trackWrap_'+aid);
   if (wrap && album) wrap.innerHTML = renderTrackList(album);
 }
