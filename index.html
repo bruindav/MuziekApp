@@ -1,4 +1,4 @@
-<!-- MuziekApp V51 | index.html | Laatste wijziging: V49 - Deezer terug naar window.open, formulier compact op mobiel, track-row overflow fix -->
+<!-- MuziekApp V49 | index.html | Laatste wijziging: V49 - Deezer terug naar window.open, formulier compact op mobiel, track-row overflow fix -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -2899,25 +2899,64 @@ function openDeezerUrl(query) {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
   if (isMobile) {
-    // Probeer de Deezer app te openen via deep link
-    // deezer:// scheme opent de app direct met zoekresultaten
     const appUrl = 'deezer://www.deezer.com/search/' + encoded;
-
-    // Verberg de pagina tijdelijk zodat de app-switch niet zichtbaar is
-    const t = setTimeout(() => {
-      // App niet geïnstalleerd of niet geopend → val terug op website
-      window.location.href = webUrl;
-    }, 1500);
-
-    // Focus-verlies betekent dat de app is geopend — annuleer de fallback
-    window.addEventListener('blur', () => clearTimeout(t), { once: true });
+    const t = setTimeout(() => { window.location.href = webUrl; }, 1500);
+    window.addEventListener('blur',     () => clearTimeout(t), { once: true });
     window.addEventListener('pagehide', () => clearTimeout(t), { once: true });
-
     window.location.href = appUrl;
   } else {
     window.open(webUrl, '_blank');
   }
 }
+
+// Slim zoeken: probeer eerst track+artist, val terug op alleen title
+window.openTrackDeezer = function(title, artist) {
+  // Strategie 1: alleen tracktitel — meest betrouwbaar, artiestnamen wijken vaak af
+  // Strategie 2: title + artist als losse woorden (geen quotes, toleranter)
+  // We kiezen strategie 2 als eerste poging, artist weglaten als fallback
+
+  // Schoon de artiestnaam op: verwijder samenwerkingsverbanden die Deezer verwarren
+  // bijv. "Agneta & Frida" → "Agneta Frida" of gewoon weglaten
+  const cleanArtist = artist
+    .replace(/\s*[&,]\s*/g, ' ')   // & en , vervangen door spatie
+    .replace(/\s+/g, ' ').trim();
+
+  const queryFull  = title + ' ' + cleanArtist;
+  const queryTitle = title; // fallback: alleen titel
+
+  // Gebruik Deezer JSONP API om te controleren of er hits zijn
+  const cbName = '_dz' + Date.now();
+  const apiUrl = 'https://api.deezer.com/search?q=' + encodeURIComponent(queryFull) +
+                 '&limit=1&output=jsonp&callback=' + cbName;
+
+  window[cbName] = function(data) {
+    delete window[cbName];
+    const s = document.getElementById(cbName);
+    if (s) s.remove();
+    if (data && data.total > 0) {
+      openDeezerUrl(queryFull);
+    } else {
+      // Geen resultaten → alleen tracktitel
+      openDeezerUrl(queryTitle);
+    }
+  };
+
+  const s = document.createElement('script');
+  s.id  = cbName;
+  s.src = apiUrl;
+  s.onerror = () => { openDeezerUrl(queryFull); delete window[cbName]; s.remove(); };
+  document.head.appendChild(s);
+
+  // Safety timeout 2s
+  setTimeout(() => {
+    if (window[cbName]) {
+      openDeezerUrl(queryFull);
+      delete window[cbName];
+      const el = document.getElementById(cbName);
+      if (el) el.remove();
+    }
+  }, 2000);
+};
 
 window.openAlbumDeezer = function(aid) {
   const a = albums.find(x=>x.id===aid);
@@ -2927,9 +2966,7 @@ window.openAlbumDeezer = function(aid) {
   showDzStrip(a, webUrl);
   openDeezerUrl(query);
 };
-window.openTrackDeezer = function(title, artist) {
-  openDeezerUrl(artist + ' ' + title);
-};
+
 window.openPlaylistDeezer = function() {
   const pl = playlists.find(p=>p.id===activePlaylistId);
   if (!pl?.ids?.length) { toast('Playlist is leeg.','err'); return; }
@@ -2942,12 +2979,8 @@ window.openPlaylistDeezer = function() {
   showDzStrip(a, webUrl);
   openDeezerUrl(query);
 };
-function showDzStrip(a, url) {
-  const encoded = encodeURIComponent(a.artist + ' ' + a.title);
-  const appUrl  = 'deezer://www.deezer.com/search/' + encoded;
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const openUrl  = isMobile ? appUrl : url;
 
+function showDzStrip(a, url) {
   document.getElementById('dzStrip').style.display='block';
   document.getElementById('dzRow').innerHTML =
     '<div class="dz-icon">🎧</div>'+
