@@ -1,4 +1,4 @@
-<!-- MuziekApp V49 | index.html | Laatste wijziging: V49 - Deezer terug naar window.open, formulier compact op mobiel, track-row overflow fix -->
+<!-- MuziekApp V51 | index.html | Laatste wijziging: V49 - Deezer terug naar window.open, formulier compact op mobiel, track-row overflow fix -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -2892,18 +2892,40 @@ window.addTrackToPlaylist = async function(albumId, tid, trackTitle, artist) {
 };
 
 // ── DEEZER ────────────────────────────────────────────────────────
-// Deezer openen — simpel window.open (werkt op alle platforms)
+// Deep link naar Deezer app op mobiel, fallback naar website
 function openDeezerUrl(query) {
-  const url = 'https://www.deezer.com/search/' + encodeURIComponent(query);
-  window.open(url, '_blank');
+  const encoded = encodeURIComponent(query);
+  const webUrl  = 'https://www.deezer.com/search/' + encoded;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    // Probeer de Deezer app te openen via deep link
+    // deezer:// scheme opent de app direct met zoekresultaten
+    const appUrl = 'deezer://www.deezer.com/search/' + encoded;
+
+    // Verberg de pagina tijdelijk zodat de app-switch niet zichtbaar is
+    const t = setTimeout(() => {
+      // App niet geïnstalleerd of niet geopend → val terug op website
+      window.location.href = webUrl;
+    }, 1500);
+
+    // Focus-verlies betekent dat de app is geopend — annuleer de fallback
+    window.addEventListener('blur', () => clearTimeout(t), { once: true });
+    window.addEventListener('pagehide', () => clearTimeout(t), { once: true });
+
+    window.location.href = appUrl;
+  } else {
+    window.open(webUrl, '_blank');
+  }
 }
 
 window.openAlbumDeezer = function(aid) {
   const a = albums.find(x=>x.id===aid);
   if (!a) return;
-  const url = 'https://www.deezer.com/search/'+encodeURIComponent(a.artist+' '+a.title);
-  showDzStrip(a, url);
-  openDeezerUrl(a.artist + ' ' + a.title);
+  const query = a.artist + ' ' + a.title;
+  const webUrl = 'https://www.deezer.com/search/' + encodeURIComponent(query);
+  showDzStrip(a, webUrl);
+  openDeezerUrl(query);
 };
 window.openTrackDeezer = function(title, artist) {
   openDeezerUrl(artist + ' ' + title);
@@ -2915,16 +2937,22 @@ window.openPlaylistDeezer = function() {
   if (!firstAlbumId) return;
   const a = albums.find(x=>x.id===firstAlbumId);
   if (!a) return;
-  const url = 'https://www.deezer.com/search/'+encodeURIComponent(a.artist+' '+a.title);
-  showDzStrip(a, url);
-  window.open(url,'_blank');
+  const query = a.artist + ' ' + a.title;
+  const webUrl = 'https://www.deezer.com/search/' + encodeURIComponent(query);
+  showDzStrip(a, webUrl);
+  openDeezerUrl(query);
 };
 function showDzStrip(a, url) {
+  const encoded = encodeURIComponent(a.artist + ' ' + a.title);
+  const appUrl  = 'deezer://www.deezer.com/search/' + encoded;
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const openUrl  = isMobile ? appUrl : url;
+
   document.getElementById('dzStrip').style.display='block';
   document.getElementById('dzRow').innerHTML =
     '<div class="dz-icon">🎧</div>'+
     '<div class="dz-info"><div class="dz-title">'+esc(a.title)+'</div><div class="dz-artist">'+esc(a.artist)+'</div></div>'+
-    '<button class="dz-open" onclick="window.open(\''+url.replace(/'/g,"\\'")+'\',' + "'_blank'" + ')">Open</button>';
+    '<button class="dz-open" onclick="openDeezerUrl(\''+esc(a.artist+' '+a.title)+'\')">Open in Deezer</button>';
 }
 
 // ── EXPORT ────────────────────────────────────────────────────────
