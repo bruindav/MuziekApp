@@ -1,9 +1,9 @@
-<!-- MuziekApp V56 | index.html | Laatste wijziging: V56 - Detail popup lager op mobiel, kruisje groter en zichtbaarder als rond knopje -->
+<!-- MuziekApp V57 | index.html | Laatste wijziging: V57 - Popup hoogte fix voor Vivaldi/mobiele browsers (--vh correctie), onbekende artiesten naar onderaan lijst -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Mijn Muziek</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -364,8 +364,9 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
   #newLength, #newBarcode, #newOrigYear, #newComposer, #newProducer, #newMusician { font-size:11px; padding:5px 8px; }
 
 
-  /* Modals */
-  .modal { width:100vw !important; max-width:100vw; border-radius:14px 14px 0 0; margin:0; position:fixed; bottom:50px; left:0; right:0; max-height:75vh; }
+  /* Modals — max-height gebaseerd op echte viewport minus URL-balk en tabbalk */
+  .modal { width:100vw !important; max-width:100vw; border-radius:14px 14px 0 0; margin:0; position:fixed; bottom:50px; left:0; right:0;
+           max-height: calc(var(--vh, 1vh) * 100 - 50px - env(safe-area-inset-top, 0px) - 16px); }
   .overlay { align-items:flex-end; }
   /* Header altijd zichtbaar, kruisje groot genoeg voor touch */
   .modal-hdr { padding:16px 16px 14px; position:sticky; top:0; z-index:10; background:var(--surface); border-radius:14px 14px 0 0; }
@@ -1431,6 +1432,12 @@ window.render = function() {
 
   filtered.sort((a,b) => {
     let va = a[sortCol]||'', vb = b[sortCol]||'';
+    // Lege/onbekende artiest altijd onderaan
+    if (sortCol === 'artist') {
+      const emptyA = !va.trim(), emptyB = !vb.trim();
+      if (emptyA && !emptyB) return 1;
+      if (!emptyA && emptyB) return -1;
+    }
     if (sortCol==='year'||sortCol==='tracks') { va=parseInt(va)||0; vb=parseInt(vb)||0; }
     const c = typeof va==='number' ? va-vb : va.localeCompare(vb,'nl',{sensitivity:'base'});
     return sortAsc ? c : -c;
@@ -3200,6 +3207,9 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 // ── INIT ──────────────────────────────────────────────────────────
 function applyMobileLayout() {
+  // Stel --vh in op de echte viewport hoogte (corrigeert voor mobiele URL-balk)
+  document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
+
   const header  = document.querySelector('header');
   const tabsEl  = document.querySelector('.tabs');
   const wrapper = document.getElementById('mainWrapper');
