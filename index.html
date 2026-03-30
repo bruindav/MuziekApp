@@ -1,4 +1,4 @@
-<!-- MuziekApp V65 | index.html | Laatste wijziging: V65 - Tracklist binnen scherm, formulier compact mobiel, sticky opslaan na scan, lege placeholders -->
+<!-- MuziekApp V66 | index.html | Laatste wijziging: V66 - Tracklist max-width fix, formulier 1-koloms mobiel, tabel minder kolommen op mobiel -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -347,19 +347,25 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
   .filter-sel { flex:1; max-width:none; font-size:12px; }
   .row-actions { opacity:1 !important; }
 
-  /* Tabel */
-  thead th:nth-child(7), thead th:nth-child(8), td:nth-child(7), td:nth-child(8) { display:none; }
+  /* Tabel — verberg alles behalve ▶, artiest, album en jaar op mobiel */
+  thead th:nth-child(n+5), td:nth-child(n+5) { display:none; }
+  /* Tracklist breedte begrenzen tot het scherm */
+  .track-list-wrap { padding:4px 4px 10px 4px !important; max-width:calc(100vw - 8px); box-sizing:border-box; overflow:hidden; }
+  .track-row { max-width:100%; overflow:hidden; min-width:0; }
 
   /* Panel */
   .panel-btns { gap:4px; }
   .pbtn { font-size:10px; padding:5px 6px; }
 
-  /* Forms mobiel compact */
-  .beheer-card-body { padding:0 10px 10px; }
-  .form-grid { gap:6px; grid-template-columns:1fr 1fr; }
-  .form-input { padding:6px 8px; font-size:12px; }
-  .form-label { font-size:10px; }
-  .form-group.full { grid-column:1/-1; }
+  /* Forms mobiel compact — 1 kolom zodat alles past */
+  .beheer-card-body { padding:0 8px 12px; }
+  .form-grid { gap:6px; grid-template-columns:1fr; }
+  .form-input { padding:7px 10px; font-size:13px; }
+  .form-label { font-size:11px; }
+  .form-group.full { grid-column:1; }
+  /* Ophalen knop naast titel: alleen icoon tonen */
+  #btn-lookup-title { padding:7px 8px; font-size:12px; white-space:nowrap; }
+  #btn-lookup-title span.lookup-text { display:none; }
   /* Scan opslaan knop sticky onderaan viewport */
   #scan-save-bar { display:none; position:fixed; bottom:55px; left:0; right:0; z-index:250; padding:8px 12px; background:var(--surface); border-top:1px solid var(--border); }
   #scan-save-bar.visible { display:block; }
@@ -817,7 +823,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
         <div class="form-group"><label class="form-label">Album Titel *</label>
           <div style="display:flex;gap:6px">
             <input class="form-input" id="newTitle" placeholder="" style="flex:1">
-            <button onclick="lookupByTitle()" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--deezer);cursor:pointer;font-size:13px;white-space:nowrap" title="Gegevens ophalen via MusicBrainz">🔍 Ophalen</button>
+            <button id="btn-lookup-title" onclick="lookupByTitle()" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--deezer);cursor:pointer;font-size:13px;white-space:nowrap" title="Gegevens ophalen via MusicBrainz">🔍<span class="lookup-text"> Ophalen</span></button>
           </div>
         </div>
         <div class="form-group"><label class="form-label">Jaar</label><input class="form-input" id="newYear" placeholder=""></div>
