@@ -1,4 +1,4 @@
-<!-- MuziekApp V61 | index.html | Laatste wijziging: V61 - Streaming dienst keuze fix: alle opties nu klikbaar, actieve kleur per dienst ipv altijd rood -->
+<!-- MuziekApp V62 | index.html | Laatste wijziging: V62 - Welkomstscherm sluitknop fix (closeWelcome op window gezet) -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -3402,9 +3402,9 @@ window.addEventListener('resize', applyMobileLayout);
 
 // ── WELKOMST & INFO PAGINA'S ──────────────────────────────────────
 
-function closeWelcome() {
+window.closeWelcome = function() {
   document.getElementById('welcomeOverlay').style.display = 'none';
-}
+};
 
 function showInfoPage(page) {
   const titles = { help:'📖 Help', privacy:'🔒 Privacy', disclaimer:'⚠️ Disclaimer' };
