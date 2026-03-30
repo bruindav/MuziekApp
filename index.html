@@ -1,4 +1,4 @@
-<!-- MuziekApp V59 | index.html | Laatste wijziging: V59 - Favoriete streamingsdienst instelbaar via Beheer (Deezer/Spotify/Apple Music/YouTube Music/Tidal), alle afspeelknoppen gebruiken gekozen dienst -->
+<!-- MuziekApp V60 | index.html | Laatste wijziging: V60 - Welkomstscherm (eerste login), Help pagina, Privacy pagina, Disclaimer, info-knop in header -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -580,6 +580,44 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
 <body>
 
 <!-- ── LOGIN SCHERM ── -->
+<!-- ── WELKOMST OVERLAY (eerste keer inloggen) ── -->
+<div id="welcomeOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:600;overflow-y:auto;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:32px 28px;max-width:440px;width:100%;margin:auto;text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">🎵</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:3px;background:linear-gradient(135deg,var(--accent),var(--deezer));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px">Welkom bij Mijn Muziek!</div>
+    <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:20px">
+      Met deze app bouw je jouw eigen persoonlijke muziekdatabase. Voeg al jouw cd's, vinyl en andere dragers toe, maak playlists en speel tracks direct af via jouw favoriete streamingsdienst.
+    </p>
+    <div style="background:var(--surface2);border-radius:12px;padding:16px;margin-bottom:24px;text-align:left">
+      <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px">Wat kun je doen?</div>
+      <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--muted)">
+        <div>💿 <strong style="color:var(--text)">Bibliotheek</strong> — scan barcodes of voeg albums handmatig toe</div>
+        <div>🎵 <strong style="color:var(--text)">Playlists</strong> — maak lijsten van jouw favoriete albums en tracks</div>
+        <div>🎧 <strong style="color:var(--text)">Afspelen</strong> — open tracks direct in Deezer, Spotify of een andere dienst</div>
+        <div>⚙️ <strong style="color:var(--text)">Beheer</strong> — importeer via CSV en stel je voorkeuren in</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:center;margin-bottom:20px;flex-wrap:wrap">
+      <button onclick="showInfoPage('help')" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--deezer);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">📖 Help</button>
+      <button onclick="showInfoPage('privacy')" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
+      <button onclick="showInfoPage('disclaimer')" style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
+    </div>
+    <button onclick="closeWelcome()" style="width:100%;padding:12px;background:var(--accent);border:none;border-radius:10px;color:white;font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;cursor:pointer">Veel plezier! 🎶</button>
+  </div>
+</div>
+
+<!-- ── INFO PAGINA (help / privacy / disclaimer) ── -->
+<div id="infoOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:610;overflow-y:auto;padding:20px">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;max-width:560px;width:100%;margin:auto">
+    <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--surface);border-radius:18px 18px 0 0;z-index:1">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--text)" id="infoTitle">Help</div>
+      <button onclick="closeInfoPage()" style="background:var(--surface2);border:none;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;color:var(--text);display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div style="padding:20px" id="infoBody"></div>
+  </div>
+</div>
+
+<!-- ── LOGIN SCREEN ── -->
 <div id="loginScreen" style="display:flex;position:fixed;inset:0;background:var(--bg);z-index:500;overflow-y:auto;align-items:center;justify-content:center">
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:360px;max-width:95vw">
     <div style="text-align:center;margin-bottom:24px">
@@ -630,6 +668,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   <div id="fbStatus" style="font-size:12px;color:var(--muted)">⏳ Verbinden…</div>
   <div id="userArea" style="display:flex;align-items:center;gap:10px;font-size:13px">
     <span id="userName" style="color:var(--muted)"></span>
+    <button onclick="showInfoPage('help')" title="Help & Info" style="padding:5px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--deezer);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">?</button>
     <button onclick="logOut()" style="padding:5px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">Uitloggen</button>
   </div>
 </header>
@@ -1280,6 +1319,7 @@ function showApp(hasHouseholdAccess) {
   initUserManagement();
   renderStreamOptions();
   updateStreamButtons();
+  checkFirstLogin(currentUser.uid);
   switchTab('bibliotheek');
 }
 
@@ -3356,7 +3396,172 @@ function applyMobileLayout() {
 }
 window.addEventListener('resize', applyMobileLayout);
 
-// ── BACK-BUTTON AFVANGEN (PWA) ────────────────────────────────────
+// ── WELKOMST & INFO PAGINA'S ──────────────────────────────────────
+
+function closeWelcome() {
+  document.getElementById('welcomeOverlay').style.display = 'none';
+}
+
+function showInfoPage(page) {
+  const titles = { help:'📖 Help', privacy:'🔒 Privacy', disclaimer:'⚠️ Disclaimer' };
+  document.getElementById('infoTitle').textContent = titles[page] || page;
+  document.getElementById('infoBody').innerHTML = INFO_CONTENT[page] || '';
+  document.getElementById('infoOverlay').style.display = 'block';
+  history.pushState({ modal: 'infoOverlay' }, '');
+}
+window.showInfoPage = showInfoPage;
+
+function closeInfoPage() {
+  document.getElementById('infoOverlay').style.display = 'none';
+  if (history.state?.modal === 'infoOverlay') history.back();
+}
+window.closeInfoPage = closeInfoPage;
+
+const INFO_CONTENT = {
+
+help: `
+<div style="display:flex;flex-direction:column;gap:18px;font-size:13px;line-height:1.65;color:var(--muted)">
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:6px">💿 Bibliotheek</div>
+    De Bibliotheek is jouw complete muziekcollectie. Alle albums staan gesorteerd op artiest.
+    Gebruik de <strong style="color:var(--text)">letterbalk</strong> bovenaan om snel naar een letter te springen.
+    Klik op een rij om de albumdetails te zien. Klik op het <strong style="color:var(--text)">▶ pijltje</strong> links om de tracklist uit te klappen.
+    Vanuit de tracklist kun je een track direct openen in jouw streamingsdienst (🎵) of toevoegen aan een playlist (+).
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:6px">➕ Album Toevoegen</div>
+    Ga naar <strong style="color:var(--text)">Beheer → Album Toevoegen</strong>. Vul artiest en albumtitel in en klik op
+    <strong style="color:var(--text)">🔍 Ophalen</strong> om gegevens automatisch op te halen via MusicBrainz.
+    Je kunt ook een barcode scannen met de camera. Sla het album op met <strong style="color:var(--text)">💾 Opslaan</strong>.
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:6px">📥 CSV Importeren</div>
+    Heb je een grote collectie? Importeer die in één keer via <strong style="color:var(--text)">Beheer → CSV Importeren</strong>.
+    Het bestand moet kolommen bevatten: <em>Artist · Title · Release Date · Genre · Tracks · Length · Label</em>.
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:6px">🎵 Playlists</div>
+    Ga naar de tab <strong style="color:var(--text)">Playlists</strong>. Maak een nieuwe playlist aan via <strong style="color:var(--text)">+ Nieuw</strong>.
+    Voeg albums toe door ze vanuit de bibliotheek naar het rechter panel te slepen, of via het detailscherm van een album.
+    Tracks voeg je toe via de tracklist (+ knop naast een track). De volgorde in de playlist is versleepbaar.
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:6px">🎧 Afspelen</div>
+    Klik op het streamingicoon (🎵) naast een track of gebruik de afspeelknop in het detailscherm.
+    De app opent jouw favoriete streamingsdienst direct. Stel je voorkeursdienst in via
+    <strong style="color:var(--text)">Beheer → Favoriete Streamingsdienst</strong>. Op mobiel wordt de app direct geopend.
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:6px">⚙️ Beheer</div>
+    In de Beheer tab stel je in: drager types (CD, LP, Cassette…), opberglocaties, streamingsdienst en kun je albums importeren of toevoegen.
+    De app onthoudt de instellingen automatisch.
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:6px">📱 Mobiel gebruik (PWA)</div>
+    Voeg de app toe aan je beginscherm via de browser-menuoptie <em>"Toevoegen aan beginscherm"</em>.
+    De app werkt dan als een volwaardige app, inclusief de terugknop die correct werkt binnen de app.
+  </div>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
+    <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
+    <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
+  </div>
+</div>`,
+
+privacy: `
+<div style="display:flex;flex-direction:column;gap:14px;font-size:13px;line-height:1.65;color:var(--muted)">
+  <p style="color:var(--text);font-weight:500">Deze app is ontwikkeld voor persoonlijk gebruik door een kleine groep vrienden en familie.</p>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:4px">Wat wordt opgeslagen?</div>
+    <ul style="padding-left:18px;display:flex;flex-direction:column;gap:5px">
+      <li>Je <strong style="color:var(--text)">e-mailadres en naam</strong> via Google of e-mail login (Firebase Authentication)</li>
+      <li>De <strong style="color:var(--text)">albumgegevens</strong> die je zelf invoert: artiest, titel, jaar, genre, label, drager, locatie</li>
+      <li>De <strong style="color:var(--text)">playlists</strong> die je aanmaakt en de inhoud ervan</li>
+      <li>Je <strong style="color:var(--text)">instelling voor streamingsdienst</strong> (alleen lokaal in je browser, niet in de cloud)</li>
+    </ul>
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:4px">Wat wordt <em>niet</em> opgeslagen?</div>
+    <ul style="padding-left:18px;display:flex;flex-direction:column;gap:5px">
+      <li>Er worden <strong style="color:var(--text)">geen wachtwoorden</strong> opgeslagen door de app (dit doet Firebase)</li>
+      <li>Er worden <strong style="color:var(--text)">geen luistergewoonten of afspeelgeschiedenissen</strong> bijgehouden</li>
+      <li>Er worden <strong style="color:var(--text)">geen gegevens gedeeld met derden</strong> of adverteerders</li>
+      <li>Er worden <strong style="color:var(--text)">geen cookies</strong> geplaatst door de app zelf</li>
+    </ul>
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:4px">Waar worden gegevens opgeslagen?</div>
+    <p>Alle gegevens worden opgeslagen in <strong style="color:var(--text)">Google Firebase Firestore</strong>, een beveiligde clouddatabase.
+    Toegang is beperkt tot ingelogde gebruikers die door de beheerder zijn uitgenodigd.</p>
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:4px">Jouw gegevens verwijderen</div>
+    <p>Wil je jouw gegevens laten verwijderen? Neem dan contact op met de beheerder van de app. Alle albumgegevens en playlists kunnen volledig worden verwijderd.</p>
+  </div>
+
+  <div style="padding-top:6px;border-top:1px solid var(--border)">
+    <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
+  </div>
+</div>`,
+
+disclaimer: `
+<div style="display:flex;flex-direction:column;gap:14px;font-size:13px;line-height:1.65;color:var(--muted)">
+  <p style="color:var(--text);font-weight:500">Mijn Muziek is een persoonlijk hobbyproject, gemaakt voor eigen gebruik.</p>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:4px">Gebruik op eigen risico</div>
+    <p>Deze app wordt aangeboden "zoals hij is", zonder enige garantie op correctheid, volledigheid of beschikbaarheid.
+    De maker is niet aansprakelijk voor enige schade die voortvloeit uit het gebruik van de app, inclusief maar niet beperkt tot verlies van gegevens, onjuiste informatie of tijdelijke onbeschikbaarheid.</p>
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:4px">Geen commercieel product</div>
+    <p>Deze app is niet bedoeld als commercieel product en wordt niet actief onderhouden als publieke dienst.
+    Functionaliteit kan op elk moment veranderen of komen te vervallen.</p>
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:4px">Externe diensten</div>
+    <p>De app maakt gebruik van externe diensten zoals <strong style="color:var(--text)">MusicBrainz</strong>, <strong style="color:var(--text)">Deezer</strong>, <strong style="color:var(--text)">Discogs</strong> en <strong style="color:var(--text)">Google Firebase</strong>.
+    De maker heeft geen controle over de beschikbaarheid of het beleid van deze diensten.
+    Het gebruik van streamingsdiensten valt onder hun eigen gebruiksvoorwaarden.</p>
+  </div>
+
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:4px">Auteursrecht</div>
+    <p>De albuminformatie die je invoert blijft jouw eigen data. De app maakt geen aanspraak op eigendom van ingevoerde gegevens.
+    Albumhoezen, tracktitels en artiestinformatie zijn eigendom van de respectievelijke rechthebbenden.</p>
+  </div>
+
+  <div style="padding-top:6px;border-top:1px solid var(--border)">
+    <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
+  </div>
+</div>`
+
+}; // einde INFO_CONTENT
+
+// ── WELKOMST LOGICA ───────────────────────────────────────────────
+function checkFirstLogin(uid) {
+  const key = 'welcomed_' + uid;
+  if (!localStorage.getItem(key)) {
+    localStorage.setItem(key, '1');
+    const el = document.getElementById('welcomeOverlay');
+    el.style.display = 'flex';
+  }
+}
+
+
 // Zet een basis history-entry zodat er altijd iets is om naar terug te gaan
 history.replaceState({ tab: 'bibliotheek' }, '');
 
