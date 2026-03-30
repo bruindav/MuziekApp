@@ -1,4 +1,4 @@
-<!-- MuziekApp V64 | index.html | Laatste wijziging: V64 - Streaming icoon in tracklist en playlist panel hersteld (was leeg na refactor) -->
+<!-- MuziekApp V65 | index.html | Laatste wijziging: V65 - Tracklist binnen scherm, formulier compact mobiel, sticky opslaan na scan, lege placeholders -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -355,14 +355,14 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
   .pbtn { font-size:10px; padding:5px 6px; }
 
   /* Forms mobiel compact */
-  .beheer-card-body { padding:0 12px 12px; }
-  .form-grid { gap:7px; grid-template-columns:1fr 1fr; }
-  .form-input { padding:7px 9px; font-size:12px; }
+  .beheer-card-body { padding:0 10px 10px; }
+  .form-grid { gap:6px; grid-template-columns:1fr 1fr; }
+  .form-input { padding:6px 8px; font-size:12px; }
   .form-label { font-size:10px; }
   .form-group.full { grid-column:1/-1; }
-  /* Minder-belangrijke velden smaller tonen */
-  #newLength, #newBarcode, #newOrigYear, #newComposer, #newProducer, #newMusician { font-size:11px; padding:5px 8px; }
-
+  /* Scan opslaan knop sticky onderaan viewport */
+  #scan-save-bar { display:none; position:fixed; bottom:55px; left:0; right:0; z-index:250; padding:8px 12px; background:var(--surface); border-top:1px solid var(--border); }
+  #scan-save-bar.visible { display:block; }
 
   /* Modals — max-height gebaseerd op echte viewport minus URL-balk en tabbalk */
   .modal { width:100vw !important; max-width:100vw; border-radius:14px 14px 0 0; margin:0; position:fixed; bottom:50px; left:0; right:0;
@@ -379,12 +379,14 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
   /* Overige */
   .view-header { padding:6px 10px 2px; }
   .view-header h2 { font-size:15px; }
-  .track-list-wrap { padding-left:4px; overflow:hidden; }
-  .track-row { gap:4px; padding:3px 2px 3px 0; }
-  .track-dur { min-width:28px; font-size:10px; }
-  .track-add { opacity:1 !important; font-size:10px; padding:2px 4px; }
-  .track-dz  { font-size:14px; padding:2px 2px; }
-  .track-btns { gap:2px; }
+  /* Track-rij: alles binnen het scherm houden */
+  .track-list-wrap { padding-left:2px; overflow:hidden; width:100%; box-sizing:border-box; }
+  .track-row { gap:3px; padding:3px 0; min-width:0; overflow:hidden; }
+  .track-title { font-size:11px; min-width:0; }
+  .track-dur { min-width:24px; font-size:10px; }
+  .track-btns { gap:2px; flex-shrink:0; }
+  .track-add { opacity:1 !important; font-size:10px; padding:2px 5px; }
+  .track-dz  { font-size:13px; padding:2px 2px; }
   .pl-mode-toggle { display:block; }
 }
 
@@ -811,21 +813,21 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       </div>
 
       <div class="form-grid">
-        <div class="form-group"><label class="form-label">Artiest *</label><input class="form-input" id="newArtist" placeholder="ABBA"></div>
+        <div class="form-group"><label class="form-label">Artiest *</label><input class="form-input" id="newArtist" placeholder=""></div>
         <div class="form-group"><label class="form-label">Album Titel *</label>
           <div style="display:flex;gap:6px">
-            <input class="form-input" id="newTitle" placeholder="Gold" style="flex:1">
+            <input class="form-input" id="newTitle" placeholder="" style="flex:1">
             <button onclick="lookupByTitle()" style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--deezer);cursor:pointer;font-size:13px;white-space:nowrap" title="Gegevens ophalen via MusicBrainz">🔍 Ophalen</button>
           </div>
         </div>
-        <div class="form-group"><label class="form-label">Jaar</label><input class="form-input" id="newYear" placeholder="1992"></div>
-        <div class="form-group"><label class="form-label">Genre</label><input class="form-input" id="newGenre" placeholder="Pop"></div>
-        <div class="form-group"><label class="form-label">Platenlabel / Uitgever</label><input class="form-input" id="newLabel" placeholder="Polydor"></div>
-        <div class="form-group"><label class="form-label">Tracks</label><input class="form-input" id="newTracks" placeholder="19" type="number"></div>
-        <div class="form-group"><label class="form-label">Lengte</label><input class="form-input" id="newLength" placeholder="1:14:31"></div>
-        <div class="form-group"><label class="form-label">Barcode</label><input class="form-input" id="newBarcode" placeholder="042284364225"></div>
-        <div class="form-group"><label class="form-label">Herkenningsnummer</label><input class="form-input" id="newHerkenning" placeholder="219" type="number"></div>
-        <div class="form-group"><label class="form-label">Origineel jaar</label><input class="form-input" id="newOrigYear" placeholder="1981"></div>
+        <div class="form-group"><label class="form-label">Jaar</label><input class="form-input" id="newYear" placeholder=""></div>
+        <div class="form-group"><label class="form-label">Genre</label><input class="form-input" id="newGenre" placeholder=""></div>
+        <div class="form-group"><label class="form-label">Platenlabel / Uitgever</label><input class="form-input" id="newLabel" placeholder=""></div>
+        <div class="form-group"><label class="form-label">Tracks</label><input class="form-input" id="newTracks" placeholder="" type="number"></div>
+        <div class="form-group"><label class="form-label">Lengte</label><input class="form-input" id="newLength" placeholder=""></div>
+        <div class="form-group"><label class="form-label">Barcode</label><input class="form-input" id="newBarcode" placeholder=""></div>
+        <div class="form-group"><label class="form-label">Herkenningsnummer</label><input class="form-input" id="newHerkenning" placeholder="" type="number"></div>
+        <div class="form-group"><label class="form-label">Origineel jaar</label><input class="form-input" id="newOrigYear" placeholder=""></div>
         <div class="form-group"><label class="form-label">Componist</label><input class="form-input" id="newComposer" placeholder=""></div>
         <div class="form-group"><label class="form-label">Producer</label><input class="form-input" id="newProducer" placeholder=""></div>
         <div class="form-group"><label class="form-label">Muzikant</label><input class="form-input" id="newMusician" placeholder=""></div>
@@ -853,6 +855,11 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
         </div>
       </div>
       </div>
+    </div>
+
+    <!-- Sticky opslaan balk na barcode scan (mobiel) -->
+    <div id="scan-save-bar">
+      <button class="btn-primary" style="width:100%" onclick="saveNewAlbum()">💾 Album Opslaan</button>
     </div>
 
     <!-- Streaming dienst -->
@@ -2391,7 +2398,12 @@ async function lookupBarcode(code) {
       (producer?'<br><small style="color:var(--muted)">Producer: '+producer+'</small>':'');
     feedback.style.color = 'var(--green)';
 
-    document.getElementById('newArtist').scrollIntoView({behavior:'smooth', block:'center'});
+    // Scroll naar het begin van het formulier (niet omlaag naar artiestveld)
+    document.getElementById('card-toevoegen').scrollIntoView({behavior:'smooth', block:'start'});
+    // Toon sticky opslaan balk op mobiel
+    if (window.innerWidth <= 768) {
+      document.getElementById('scan-save-bar').classList.add('visible');
+    }
 
   } catch(e) {
     feedback.textContent = '⚠ Fout bij ophalen: ' + e.message + '. Vul handmatig in.';
@@ -2506,6 +2518,7 @@ window.saveNewAlbum = async function() {
   document.getElementById('newDeviceType').value  = '';
   document.getElementById('newStorageLabel').value = '';
   document.getElementById('scanFeedback').textContent = '';
+  document.getElementById('scan-save-bar').classList.remove('visible');
   toast('"'+title+'" opgeslagen ✓', 'ok');
 };
 
