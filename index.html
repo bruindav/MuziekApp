@@ -1,4 +1,4 @@
-<!-- MuziekApp V62 | index.html | Laatste wijziging: V62 - Welkomstscherm sluitknop fix (closeWelcome op window gezet) -->
+<!-- MuziekApp V64 | index.html | Laatste wijziging: V64 - Streaming icoon in tracklist en playlist panel hersteld (was leeg na refactor) -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -1710,7 +1710,7 @@ function renderPanel() {
           <div class="pl-artist">${esc(t.artist)}${t.album?' · '+esc(t.album):''}</div>
         </div>
         <button class="pl-dz" data-title="${esc(t.title)}" data-artist="${esc(t.artist)}"
-          onclick="openTrackStream(this.dataset.title,this.dataset.artist)" title="Afspelen"></button>
+          onclick="openTrackStream(this.dataset.title,this.dataset.artist)" title="Afspelen">${(STREAMING_SERVICES[activeStreamingService]||STREAMING_SERVICES.deezer).icon}</button>
         <button class="pl-rm" onclick="removeFromPlaylist('${aid}')" title="Verwijder">✕</button>
       </div>`;
     }
@@ -1727,7 +1727,7 @@ function renderPanel() {
         <div class="pl-title">💿 ${esc(a.title)}</div>
         <div class="pl-artist">${esc(a.artist)}${a.year?' · '+a.year:''}</div>
       </div>
-      <button class="pl-dz" onclick="openAlbumStream('${a.id}')" title="Afspelen"></button>
+      <button class="pl-dz" onclick="openAlbumStream('${a.id}')" title="Afspelen">${(STREAMING_SERVICES[activeStreamingService]||STREAMING_SERVICES.deezer).icon}</button>
       <button class="pl-rm" onclick="removeFromPlaylist('${aid}')" title="Verwijder">✕</button>
     </div>`;
   }).join('');
@@ -2111,7 +2111,6 @@ function startDeviceListeners() {
     storageLabels = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderStorageLabelList();
     populateStorageSelects();
-    cleanupStorageLabels();
   });
   unsubscribeListeners.push(u4, u5);
 }
@@ -2186,20 +2185,6 @@ window.deleteStorageLabel = async function(id, name) {
     await deleteDoc(userDoc('storageLabels',id));
   });
 };
-
-async function cleanupStorageLabels() {
-  // Verwijder labels die aan geen enkel album meer gekoppeld zijn
-  const usedLabels = new Set(albums.map(a=>a.storageLabel).filter(Boolean));
-  for (const label of storageLabels) {
-    if (!usedLabels.has(label.name)) {
-      // Alleen auto-verwijderen als er al albums zijn geladen
-      // (niet bij eerste load als albums nog leeg is)
-      if (albums.length > 0) {
-        await deleteDoc(userDoc('storageLabels',label.id));
-      }
-    }
-  }
-}
 
 window.openAddDeviceType = function() {
   document.getElementById('newDeviceTypeInput').focus();
@@ -2851,7 +2836,7 @@ function renderTrackList(album) {
         <button class="track-dz"
           data-title="${esc(t.title)}" data-artist="${esc(album.artist)}"
           onclick="openTrackStream(this.dataset.title,this.dataset.artist)"
-          title="Afspelen"></button>
+          title="Afspelen">${(STREAMING_SERVICES[activeStreamingService]||STREAMING_SERVICES.deezer).icon}</button>
         <button class="track-add"
           data-album-id="${album.id}" data-tid="${tid}"
           data-title="${esc(t.title)}" data-artist="${esc(album.artist)}"
