@@ -1,4 +1,4 @@
-<!-- MuziekApp V60 | index.html | Laatste wijziging: V60 - Welkomstscherm (eerste login), Help pagina, Privacy pagina, Disclaimer, info-knop in header -->
+<!-- MuziekApp V61 | index.html | Laatste wijziging: V61 - Streaming dienst keuze fix: alle opties nu klikbaar, actieve kleur per dienst ipv altijd rood -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -3086,25 +3086,29 @@ const STREAMING_SERVICES = {
 
 let activeStreamingService = localStorage.getItem('streamingService') || 'deezer';
 
-function setStreamingService(id) {
+window.setStreamingService = function(id) {
   activeStreamingService = id;
   localStorage.setItem('streamingService', id);
   renderStreamOptions();
   updateStreamButtons();
   toast(STREAMING_SERVICES[id].name + ' ingesteld als streamingsdienst ✓', 'ok');
-}
+};
 
 function renderStreamOptions() {
   const el = document.getElementById('streamOptions');
   if (!el) return;
-  el.innerHTML = Object.entries(STREAMING_SERVICES).map(([id, s]) => `
-    <div class="stream-opt ${activeStreamingService===id?'active':''}" onclick="setStreamingService('${id}')">
+  el.innerHTML = Object.entries(STREAMING_SERVICES).map(([id, s]) => {
+    const isActive = activeStreamingService === id;
+    const borderStyle = isActive ? `border-color:${s.color};background:${s.color}18` : '';
+    return `
+    <div class="stream-opt" style="${borderStyle}" onclick="setStreamingService('${id}')">
       <span class="stream-opt-icon">${s.icon}</span>
       <div>
-        <div class="stream-opt-name" style="color:${activeStreamingService===id?s.color:'inherit'}">${s.name}</div>
+        <div class="stream-opt-name" style="color:${isActive ? s.color : 'inherit'}">${s.name}</div>
         <div class="stream-opt-sub">${s.sub}</div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function updateStreamButtons() {
