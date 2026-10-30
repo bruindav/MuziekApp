@@ -1,4 +1,4 @@
-<!-- MuziekApp V69 | index.html | Laatste wijziging: V69 - Nieuw digidave icoon: vinyl+db+noten, gebruikt in welcome/login/disclaimer en als PWA icon -->
+<!-- MuziekApp V70 | index.html | Laatste wijziging: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -3658,6 +3658,13 @@ function checkFirstLogin(uid) {
 history.replaceState({ tab: 'bibliotheek' }, '');
 
 window.addEventListener('popstate', function(e) {
+  // V70: infopagina (help/privacy/disclaimer) open? Sluit die eerst.
+  const info = document.getElementById('infoOverlay');
+  if (info && info.style.display === 'block') {
+    info.style.display = 'none';
+    history.pushState({ tab: currentTab }, '');
+    return;
+  }
   // 1) Is er een open modal? Sluit die.
   const openModal = document.querySelector('.overlay.open');
   if (openModal) {
@@ -3683,6 +3690,15 @@ window.addEventListener('popstate', function(e) {
 // App start — loginScreen is zichtbaar (display:flex in HTML)
 // switchTab wordt aangeroepen door showApp() na succesvolle login
 applyMobileLayout();
+
+// V70: help direct openen met #help achter het adres (bijv. vanuit DigidaveStore)
+function openHelpFromHash() {
+  if (location.hash !== '#help') return;
+  history.replaceState(history.state, '', location.pathname + location.search);
+  showInfoPage('help');
+}
+openHelpFromHash();
+window.addEventListener('hashchange', openHelpFromHash);
 </script>
 </body>
 </html>
