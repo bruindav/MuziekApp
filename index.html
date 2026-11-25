@@ -3370,12 +3370,31 @@ function dl(content,name,type) { const a=document.createElement('a'); a.href=URL
 
 // Fix: fix-3 — Spotify OAuth: Authorization Code + PKCE (Implicit Grant afgeschaft door Spotify)
 const SPOTIFY_CLIENT_ID = '74886671e38a47c4b306d83fc17f78ab';
-const SPOTIFY_REDIRECT   = location.origin + location.pathname;
-const SPOTIFY_SCOPES     = 'playlist-modify-public playlist-modify-private';
+const SPOTIFY_SCOPES    = 'playlist-modify-public playlist-modify-private';
 
 let spotifyToken = null;
 
-// PKCE hulpfuncties
+// --- Hulpfuncties (allemaal gedefinieerd vóór gebruik) ---
+
+function getSpotifyClientId() {
+  return window._spotifyClientIdOverride
+    || localStorage.getItem('spotify_client_id')
+    || SPOTIFY_CLIENT_ID;
+}
+
+function getSpotifyToken() {
+  if (spotifyToken) return spotifyToken;
+  const stored = sessionStorage.getItem('spotify_token');
+  const exp    = sessionStorage.getItem('spotify_token_exp');
+  if (stored && exp && Date.now() < Number(exp)) {
+    spotifyToken = stored;
+    return stored;
+  }
+  sessionStorage.removeItem('spotify_token');
+  sessionStorage.removeItem('spotify_token_exp');
+  return null;
+}
+
 async function pkceChallenge() {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
@@ -3388,10 +3407,10 @@ async function pkceChallenge() {
   return { verifier, challenge };
 }
 
-// Wissel authorization code voor access token (PKCE — geen client secret nodig)
 async function spotifyExchangeCode(code, verifier) {
-  // Gebruik de opgeslagen redirect_uri zodat authorize en token exact matchen
-  const redirectUri = sessionStorage.getItem('spotify_redirect_used') || SPOTIFY_REDIRECT;
+  const redirectUri = sessionStorage.getItem('spotify_redirect_used')
+                      || (location.origin + location.pathname);
+  const clientId    = getSpotifyClientId();
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -3399,71 +3418,16 @@ async function spotifyExchangeCode(code, verifier) {
       grant_type:    'authorization_code',
       code,
       redirect_uri:  redirectUri,
-      client_id:     getSpotifyClientId(),
+      client_id:     clientId,
       code_verifier: verifier,
     }),
   });
   const text = await res.text();
   let data;
-  try { data = JSON.parse(text); } catch(e) {
-    throw new Error('Spotify antwoord onverwacht: ' + text.slice(0, 80));
-  }
-  if (!res.ok || data.error) throw new Error(data.error_description || data.error || 'status ' + res.status);
+  try { data = JSON.parse(text); }
+  catch(e) { throw new Error('Spotify antwoord onverwacht: ' + text.slice(0, 100)); }
+  if (!res.ok || data.error) throw new Error(data.error_description || data.error || 'HTTP ' + res.status);
   return data;
-}
-
-// Verwerk callback: ?code=… in de URL na terugkeer van Spotify
-(async function checkSpotifyCallback() {
-  const params = new URLSearchParams(location.search);
-  const code    = params.get('code');
-  const error   = params.get('error');
-  if (error) {
-    history.replaceState(null, '', location.pathname);
-    toast('Spotify login geannuleerd.', 'err');
-    return;
-  }
-  if (!code) return;
-  // Verwijder code uit URL direct
-  history.replaceState(null, '', location.pathname);
-  const verifier = sessionStorage.getItem('spotify_pkce_verifier');
-  if (!verifier) { toast('Spotify login mislukt (verifier kwijt).', 'err'); return; }
-  sessionStorage.removeItem('spotify_pkce_verifier');
-  try {
-    const data = await spotifyExchangeCode(code, verifier);
-    spotifyToken = data.access_token;
-    sessionStorage.setItem('spotify_token', spotifyToken);
-    // Sla verlooptijd op (standaard 3600s)
-    sessionStorage.setItem('spotify_token_exp', Date.now() + (data.expires_in - 60) * 1000);
-    toast('Spotify verbonden ✓', 'ok');
-    const pending = sessionStorage.getItem('spotify_pending_pl');
-    if (pending) {
-      sessionStorage.removeItem('spotify_pending_pl');
-      setTimeout(() => doSpotifyExport(pending), 500);
-    }
-    initSpotifyBeheer();
-  } catch(e) {
-    toast('Spotify verbinden mislukt: ' + e.message, 'err');
-  }
-})();
-
-function getSpotifyToken() {
-  if (spotifyToken) return spotifyToken;
-  const stored = sessionStorage.getItem('spotify_token');
-  const exp    = sessionStorage.getItem('spotify_token_exp');
-  if (stored && exp && Date.now() < Number(exp)) {
-    spotifyToken = stored;
-    return stored;
-  }
-  // Token verlopen — opruimen
-  sessionStorage.removeItem('spotify_token');
-  sessionStorage.removeItem('spotify_token_exp');
-  return null;
-}
-
-function getSpotifyClientId() {
-  return window._spotifyClientIdOverride
-    || localStorage.getItem('spotify_client_id')
-    || SPOTIFY_CLIENT_ID;
 }
 
 async function loginSpotify(pendingPlId) {
@@ -3471,9 +3435,9 @@ async function loginSpotify(pendingPlId) {
   if (!cid) { toast('Spotify Client ID niet ingesteld. Zie beheer → Spotify koppeling.', 'err'); return; }
   if (pendingPlId) sessionStorage.setItem('spotify_pending_pl', pendingPlId);
   const { verifier, challenge } = await pkceChallenge();
-  sessionStorage.setItem('spotify_pkce_verifier', verifier);
-  // Sla exacte redirect_uri op — moet bij token-uitwisseling identiek zijn
+  // Sla verifier en exacte redirect_uri op vóór de redirect
   const redirectUri = location.origin + location.pathname;
+  sessionStorage.setItem('spotify_pkce_verifier', verifier);
   sessionStorage.setItem('spotify_redirect_used', redirectUri);
   const url = 'https://accounts.spotify.com/authorize'
     + '?client_id='             + encodeURIComponent(cid)
@@ -3485,6 +3449,45 @@ async function loginSpotify(pendingPlId) {
     + '&show_dialog=false';
   location.href = url;
 }
+
+// --- Callback afhandelen: staat onderaan zodat alle functies beschikbaar zijn ---
+// Wordt aangeroepen via window.onload om zeker te zijn dat toast() e.a. klaar zijn
+window.addEventListener('load', async function spotifyCallback() {
+  const params = new URLSearchParams(location.search);
+  const code   = params.get('code');
+  const error  = params.get('error');
+  if (error) {
+    history.replaceState(null, '', location.pathname);
+    toast('Spotify login geannuleerd.', 'err');
+    return;
+  }
+  if (!code) return;
+  const verifier = sessionStorage.getItem('spotify_pkce_verifier');
+  if (!verifier) {
+    history.replaceState(null, '', location.pathname);
+    toast('Spotify login mislukt (sessie verlopen, probeer opnieuw).', 'err');
+    return;
+  }
+  // Verwijder code pas ná succesvolle uitwisseling
+  try {
+    sessionStorage.removeItem('spotify_pkce_verifier');
+    const data = await spotifyExchangeCode(code, verifier);
+    history.replaceState(null, '', location.pathname);
+    spotifyToken = data.access_token;
+    sessionStorage.setItem('spotify_token', spotifyToken);
+    sessionStorage.setItem('spotify_token_exp', Date.now() + (data.expires_in - 60) * 1000);
+    toast('Spotify verbonden ✓', 'ok');
+    const pending = sessionStorage.getItem('spotify_pending_pl');
+    if (pending) {
+      sessionStorage.removeItem('spotify_pending_pl');
+      setTimeout(() => doSpotifyExport(pending), 500);
+    }
+    initSpotifyBeheer();
+  } catch(e) {
+    history.replaceState(null, '', location.pathname);
+    toast('Spotify verbinden mislukt: ' + e.message, 'err');
+  }
+});
 
 window.exportToSpotify = async function() {
   if (!getSpotifyClientId()) {
