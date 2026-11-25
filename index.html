@@ -3390,19 +3390,26 @@ async function pkceChallenge() {
 
 // Wissel authorization code voor access token (PKCE — geen client secret nodig)
 async function spotifyExchangeCode(code, verifier) {
+  // Gebruik de opgeslagen redirect_uri zodat authorize en token exact matchen
+  const redirectUri = sessionStorage.getItem('spotify_redirect_used') || SPOTIFY_REDIRECT;
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type:    'authorization_code',
       code,
-      redirect_uri:  SPOTIFY_REDIRECT,
+      redirect_uri:  redirectUri,
       client_id:     getSpotifyClientId(),
       code_verifier: verifier,
     }),
   });
-  if (!res.ok) throw new Error('Token-uitwisseling mislukt: ' + res.status);
-  return res.json();
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch(e) {
+    throw new Error('Spotify antwoord onverwacht: ' + text.slice(0, 80));
+  }
+  if (!res.ok || data.error) throw new Error(data.error_description || data.error || 'status ' + res.status);
+  return data;
 }
 
 // Verwerk callback: ?code=… in de URL na terugkeer van Spotify
@@ -3465,10 +3472,13 @@ async function loginSpotify(pendingPlId) {
   if (pendingPlId) sessionStorage.setItem('spotify_pending_pl', pendingPlId);
   const { verifier, challenge } = await pkceChallenge();
   sessionStorage.setItem('spotify_pkce_verifier', verifier);
+  // Sla exacte redirect_uri op — moet bij token-uitwisseling identiek zijn
+  const redirectUri = location.origin + location.pathname;
+  sessionStorage.setItem('spotify_redirect_used', redirectUri);
   const url = 'https://accounts.spotify.com/authorize'
     + '?client_id='             + encodeURIComponent(cid)
     + '&response_type=code'
-    + '&redirect_uri='          + encodeURIComponent(SPOTIFY_REDIRECT)
+    + '&redirect_uri='          + encodeURIComponent(redirectUri)
     + '&scope='                 + encodeURIComponent(SPOTIFY_SCOPES)
     + '&code_challenge_method=S256'
     + '&code_challenge='        + encodeURIComponent(challenge)
