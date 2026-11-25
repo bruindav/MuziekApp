@@ -1,0 +1,42 @@
+# Fix: fix-2 — Playwright e2e tests draaien bij push naar fix-branches en main
+name: Playwright tests
+
+on:
+  push:
+    branches:
+      - main
+      - 'fix-*'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js installen
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Dependencies installen
+        run: npm ci
+
+      - name: Playwright browsers installen
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Tests draaien tegen live site
+        run: npx playwright test
+        env:
+          TEST_URL: 'https://bruindav.github.io/MuziekApp/'
+
+      - name: Testrapport uploaden
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
