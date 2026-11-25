@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-6 | index.html | Fix: fix-6 — Playlist selectie bewaard na Spotify-redirect, UX verbeterd -->
+<!-- MuziekApp fix-7 | index.html | Fix: fix-7 — Toast verbeterd, Wissel-knop naar Kies, Spotify foutmelding leesbaarder -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -457,8 +457,9 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 .tag-chip button:hover { color:var(--accent); }
 
 /* ── TOAST ── */
-.toast { position:fixed; bottom:20px; right:20px; background:var(--surface2); border:1px solid var(--border); border-radius:9px; padding:10px 15px; font-size:13px; color:var(--text); z-index:400; transform:translateY(50px); opacity:0; transition:all .25s; }
-.toast.show { transform:translateY(0); opacity:1; }
+/* Fix-7: toast breder, tekst wrapping, langere tijd bij fouten */
+.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(60px); background:var(--surface2); border:1px solid var(--border); border-radius:9px; padding:10px 16px; font-size:13px; color:var(--text); z-index:400; opacity:0; transition:all .25s; max-width:calc(100vw - 32px); width:max-content; white-space:pre-wrap; word-break:break-word; box-shadow:0 4px 16px rgba(0,0,0,.4); text-align:center; }
+.toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
 .toast.ok { border-left:3px solid var(--green); }
 .toast.err { border-left:3px solid var(--accent); }
 
@@ -731,7 +732,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <!-- Fix-4: householdId zichtbaar voor diagnose -->
     <div id="householdDebug" style="font-size:9px;color:var(--muted);margin-top:2px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Household ID (debug)"></div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center">
-      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-6</span>
+      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-7</span>
     </div>
   </div>
 </aside>
@@ -770,11 +771,12 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
 <aside class="panel" id="rightPanel">
   <!-- Mobiele playlist tab balk -->
   <div class="pl-tab-bar" id="plTabBar">
-    <div style="flex:1;min-width:0">
-      <div class="pl-tab-bar-name" id="plTabBarName">Geen playlist</div>
-      <div class="pl-tab-bar-count" id="plTabBarCount">Kies een playlist</div>
+    <!-- Fix-7: tik op naam/wissel-knop om playlist te kiezen -->
+    <div style="flex:1;min-width:0;cursor:pointer" onclick="openPlDrawer()" title="Kies een playlist">
+      <div class="pl-tab-bar-name" id="plTabBarName">Geen playlist gekozen</div>
+      <div class="pl-tab-bar-count" id="plTabBarCount">Tik hier om een playlist te kiezen</div>
     </div>
-    <button class="pl-tab-bar-btn" onclick="openPlDrawer()">☰ Wissel</button>
+    <button class="pl-tab-bar-btn" onclick="openPlDrawer()" title="Kies een playlist">🎵 Kies</button>
     <button class="pl-tab-bar-btn" onclick="openNewPlaylistModal()" style="border-color:var(--accent);color:var(--accent)">+ Nieuw</button>
   </div>
   <div class="panel-hdr" id="panelHdr" style="display:none">
@@ -2068,7 +2070,7 @@ function updatePlTabBar() {
     countEl.textContent = (pl.ids||[]).length + ' items';
   } else {
     nameEl.textContent  = 'Geen playlist gekozen';
-    countEl.textContent = 'Tik op een playlist om te kiezen';
+    countEl.textContent = 'Tik hier om een playlist te kiezen';
   }
 }
 
@@ -3575,7 +3577,11 @@ async function doSpotifyExport(plId, token) {
     });
     const created = await createRes.json();
     const spotifyPlId = created.id;
-    if (!spotifyPlId) throw new Error('Playlist aanmaken mislukt');
+    // Fix-7: duidelijke foutmelding als playlist aanmaken mislukt
+    if (!spotifyPlId) {
+      const reden = created.error?.message || createRes.status;
+      throw new Error('Playlist aanmaken mislukt (' + reden + '). Controleer je Spotify-rechten (scope playlist-modify-public/private).');
+    }
 
     const trackUris = [];
     let gevonden = 0, niet_gevonden = 0;
@@ -3744,7 +3750,8 @@ function toast(msg,type) {
   const el=document.getElementById('toast');
   el.textContent=(type==='ok'?'✓ ':type==='err'?'⚠ ':'')+msg;
   el.className='toast show '+(type||'');
-  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),3000);
+  // Fix-7: foutmeldingen 6 sec zichtbaar, overige 3 sec
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'), type==='err' ? 6000 : 3000);
 }
 window.toast = toast;
 
@@ -3863,7 +3870,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-6" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-6</span>
+    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-7" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-7</span>
   </div>
 </div>`,
 
