@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-5 | index.html | Fix: fix-5 — Dubbele deploy-workflow verwijderd, fixnummer fix-5 omgezet naar Authorization Code + PKCE (Implicit Grant afgeschaft) -->
+<!-- MuziekApp fix-6 | index.html | Fix: fix-6 — Playlist selectie bewaard na Spotify-redirect, UX verbeterd -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -731,7 +731,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <!-- Fix-4: householdId zichtbaar voor diagnose -->
     <div id="householdDebug" style="font-size:9px;color:var(--muted);margin-top:2px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Household ID (debug)"></div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center">
-      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-5</span>
+      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-6</span>
     </div>
   </div>
 </aside>
@@ -749,7 +749,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       </div>
       <select class="filter-sel" id="genreFilter" onchange="render()"><option value="">Alle genres</option></select>
       <select class="filter-sel" id="yearFilter" onchange="render()" style="max-width:90px"><option value="">Alle jaren</option></select>
-      <button class="pl-mode-toggle" id="plModeToggle" onclick="togglePlaylistMode()">🎵 Playlist</button>
+      <button class="pl-mode-toggle" id="plModeToggle" onclick="togglePlaylistMode()" title="Voeg albums toe aan een playlist">🎵 Toevoegen aan playlist</button>
     </div>
     <div class="view-header">
       <h2 id="viewTitle">Alle Albums</h2>
@@ -790,8 +790,8 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   <div class="panel-list" id="panelList">
     <div class="empty">
       <div class="empty-icon">📋</div>
-      <h3>Geen playlist</h3>
-      <p>Selecteer of maak een playlist.</p>
+      <h3>Geen playlist gekozen</h3>
+      <p>Kies een playlist in de linkerkolom, of maak een nieuwe aan.</p>
     </div>
   </div>
   <div class="dz-strip" id="dzStrip" style="display:none">
@@ -1455,6 +1455,11 @@ function startListeners() {
   // Fix-4: foutafhandeling op playlist-listener
   const u2 = onSnapshot(query(userCol('playlists'), orderBy('createdAt')), snap => {
     playlists = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Fix-6: herstel actieve playlist na pagina-herlaad (bijv. na Spotify-redirect)
+    if (!activePlaylistId) {
+      const saved = sessionStorage.getItem('active_playlist_id');
+      if (saved && playlists.find(p => p.id === saved)) activePlaylistId = saved;
+    }
     updateStats(); renderPlaylists(); renderPanel();
   }, err => {
     console.error('Playlist listener fout:', err.code, err.message);
@@ -1530,6 +1535,9 @@ window.toggleMobilePanel = function() {};
 
 window.selectPlaylist = function(id) {
   activePlaylistId = id;
+  // Fix-6: onthoud actieve playlist zodat die na Spotify-redirect nog geselecteerd is
+  if (id) sessionStorage.setItem('active_playlist_id', id);
+  else sessionStorage.removeItem('active_playlist_id');
   renderPlaylists();
   renderPanel();
   render();
@@ -1677,14 +1685,20 @@ function updateSelUI() {
 
 // ── PLAYLISTS ─────────────────────────────────────────────────────
 function renderPlaylists() {
-  document.getElementById('plList').innerHTML = playlists.map((pl,idx) => {
-    const c = COLORS[idx % COLORS.length];
-    return `<div class="nav-item ${pl.id===activePlaylistId?'active':''}" onclick="selectPlaylist('${pl.id}')">
-      <div class="nav-dot" style="background:${c.bg};color:${c.c}">${c.i}</div>
-      <div class="nav-info"><div class="nav-name">${esc(pl.name)}</div><div class="nav-count">${(pl.ids||[]).length} items</div></div>
-      <button class="nav-del" onclick="event.stopPropagation();confirmDeletePlaylist('${pl.id}')">✕</button>
-    </div>`;
-  }).join('');
+  // Fix-6: lege staat met uitleg als er nog geen playlists zijn
+  const listEl = document.getElementById('plList');
+  if (playlists.length === 0) {
+    listEl.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--muted);text-align:center">Nog geen playlists.<br>Klik op <strong>+ Nieuwe Playlist</strong>.</div>';
+  } else {
+    listEl.innerHTML = playlists.map((pl,idx) => {
+      const c = COLORS[idx % COLORS.length];
+      return `<div class="nav-item ${pl.id===activePlaylistId?'active':''}" onclick="selectPlaylist('${pl.id}')">
+        <div class="nav-dot" style="background:${c.bg};color:${c.c}">${c.i}</div>
+        <div class="nav-info"><div class="nav-name">${esc(pl.name)}</div><div class="nav-count">${(pl.ids||[]).length} items</div></div>
+        <button class="nav-del" onclick="event.stopPropagation();confirmDeletePlaylist('${pl.id}')">✕</button>
+      </div>`;
+    }).join('');
+  }
   // Update drawer en tab bar
   renderPlDrawer();
   updatePlTabBar();
@@ -1758,7 +1772,7 @@ function renderPanel() {
 
   if (!activePlaylistId) {
     hdr.style.display='none'; dzs.style.display='none';
-    list.innerHTML='<div class="empty"><div class="empty-icon">📋</div><h3>Geen playlist</h3><p>Selecteer of maak een playlist.</p></div>';
+    list.innerHTML='<div class="empty"><div class="empty-icon">📋</div><h3>Geen playlist gekozen</h3><p>Kies een playlist in de linkerkolom, of maak een nieuwe aan.</p></div>';
     return;
   }
   const pl = playlists.find(p=>p.id===activePlaylistId);
@@ -2053,8 +2067,8 @@ function updatePlTabBar() {
     nameEl.textContent  = pl.name;
     countEl.textContent = (pl.ids||[]).length + ' items';
   } else {
-    nameEl.textContent  = 'Geen playlist';
-    countEl.textContent = 'Tik Wissel om te kiezen';
+    nameEl.textContent  = 'Geen playlist gekozen';
+    countEl.textContent = 'Tik op een playlist om te kiezen';
   }
 }
 
@@ -3849,7 +3863,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-5" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-5</span>
+    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-6" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-6</span>
   </div>
 </div>`,
 
