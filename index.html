@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-11 | index.html | Fix: fix-11 — Spotify export debug-logging -->
+<!-- MuziekApp fix-12 | index.html | Fix: fix-12 — Spotify export verwijderd (vereist Premium) -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -529,11 +529,8 @@ tbody tr:hover .row-actions { opacity:1; }
 .pbtn { flex:1; padding:6px 8px; border-radius:8px; border:none; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px; transition:opacity .15s,transform .1s; white-space:nowrap; }
 .pbtn:hover { opacity:.85; transform:translateY(-1px); }
 .pbtn-deezer { background:linear-gradient(135deg,#a259ff,#7c3aed); color:white; }
-.pbtn-spotify { background:linear-gradient(135deg,#1db954,#158a3e); color:white; }
-.pbtn-spotify:hover { opacity:.85; transform:translateY(-1px); }
 .pbtn-json { background:var(--surface2); border:1px solid var(--border); color:var(--text); }
 .pbtn-csv  { background:var(--surface2); border:1px solid var(--border); color:var(--text); }
-.pbtn-spotify-export { background:linear-gradient(135deg,#1db954,#158a3e); color:white; border:none; }
 
 /* Streaming dienst kiezer */
 .stream-options { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
@@ -732,7 +729,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <!-- Fix-4: householdId zichtbaar voor diagnose -->
     <div id="householdDebug" style="font-size:9px;color:var(--muted);margin-top:2px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Household ID (debug)"></div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center">
-      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-11</span>
+      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-12</span>
     </div>
   </div>
 </aside>
@@ -784,7 +781,6 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <div class="panel-meta" id="panelMeta">0 items</div>
     <div class="panel-btns">
       <button class="pbtn" id="panelStreamBtn" onclick="openPlaylistStream()" style="display:none"></button>
-      <button class="pbtn pbtn-spotify-export" onclick="exportToSpotify()" title="Exporteer playlist naar Spotify">↑ Spotify</button>
       <button class="pbtn pbtn-json" onclick="exportJSON()">↓ JSON</button>
       <button class="pbtn pbtn-csv" onclick="exportPlaylistCSV()">↓ CSV</button>
     </div>
@@ -898,24 +894,6 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       </div>
     </div>
 
-    <!-- Spotify Koppeling -->
-    <div class="beheer-card" id="card-spotify">
-      <div class="beheer-card-header" onclick="toggleCard('card-spotify');initSpotifyBeheer()">
-        <h3>🟢 Spotify Koppeling</h3>
-        <span class="beheer-card-chevron">▶</span>
-      </div>
-      <div class="beheer-card-body">
-        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
-          Om playlists naar Spotify te exporteren heb je een gratis Spotify developer account nodig.<br>
-          Registreer je app op <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:var(--spotify)">developer.spotify.com</a>, voeg <strong style="color:var(--text)">https://bruindav.github.io/MuziekApp/</strong> toe als Redirect URI, en plak hier je Client ID.
-        </p>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-          <input class="form-input" id="spotifyClientIdInput" placeholder="Spotify Client ID…" style="flex:1;font-family:monospace;font-size:12px" oninput="saveSpotifyClientId(this.value)">
-          <button class="btn-primary" style="background:var(--spotify);border-color:var(--spotify)" onclick="testSpotifyLogin()">Verbinden</button>
-        </div>
-        <div id="spotifyStatus" style="font-size:11px;color:var(--muted)">Nog niet verbonden.</div>
-      </div>
-    </div>
 
     <!-- CSV Import -->
     <div class="beheer-card" id="card-csv">
@@ -1374,7 +1352,6 @@ function showApp(hasHouseholdAccess) {
   renderStreamOptions();
   updateStreamButtons();
   checkFirstLogin(currentUser.uid);
-  initSpotifyBeheer();
   switchTab('bibliotheek');
 }
 
@@ -3417,275 +3394,9 @@ window.exportPlaylistCSV = function() {
 };
 function dl(content,name,type) { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
 
-// Fix: fix-5 — Dubbele deploy-workflow verwijderd, fixnummer fix-5: Authorization Code + PKCE (Implicit Grant afgeschaft door Spotify)
-const SPOTIFY_CLIENT_ID = '74886671e38a47c4b306d83fc17f78ab';
-const SPOTIFY_SCOPES    = 'playlist-modify-public playlist-modify-private';
+// Fix-12: Spotify verwijderd (vereist Premium-abonnement)
 
-let spotifyToken = null;
 
-// --- Hulpfuncties (allemaal gedefinieerd vóór gebruik) ---
-
-function getSpotifyClientId() {
-  return window._spotifyClientIdOverride
-    || localStorage.getItem('spotify_client_id')
-    || SPOTIFY_CLIENT_ID;
-}
-
-function getSpotifyToken() {
-  if (spotifyToken) return spotifyToken;
-  const stored = sessionStorage.getItem('spotify_token');
-  const exp    = sessionStorage.getItem('spotify_token_exp');
-  if (stored && exp && Date.now() < Number(exp)) {
-    spotifyToken = stored;
-    return stored;
-  }
-  sessionStorage.removeItem('spotify_token');
-  sessionStorage.removeItem('spotify_token_exp');
-  return null;
-}
-
-async function pkceChallenge() {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  const verifier = btoa(String.fromCharCode(...array))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  const data = new TextEncoder().encode(verifier);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  const challenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  return { verifier, challenge };
-}
-
-// Fix-9: redirect_uri altijd consistent — zonder index.html, met trailing slash
-function getSpotifyRedirectUri() {
-  // Altijd de canonieke URL zonder index.html — moet exact overeenkomen met Spotify Dashboard
-  const base = location.origin + location.pathname.replace(/index\.html$/, '');
-  return base.endsWith('/') ? base : base + '/';
-}
-
-// Fix-9: debug-overlay — toont Spotify token-uitwisseling details op het scherm
-function spotifyDebugOverlay(info) {
-  let el = document.getElementById('spotify-debug-overlay');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'spotify-debug-overlay';
-    el.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);color:#0f0;font-family:monospace;font-size:12px;padding:16px;overflow:auto;z-index:99999;white-space:pre-wrap;word-break:break-all';
-    const btn = document.createElement('button');
-    btn.textContent = '✕ Sluiten';
-    btn.style.cssText = 'display:block;margin-bottom:12px;padding:8px 16px;background:#333;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer';
-    btn.onclick = () => el.remove();
-    el.appendChild(btn);
-    document.body.appendChild(el);
-  }
-  const pre = document.createElement('pre');
-  pre.textContent = info;
-  el.appendChild(pre);
-}
-
-async function spotifyExchangeCode(code, verifier) {
-  const redirectUri = getSpotifyRedirectUri();
-  const clientId    = getSpotifyClientId();
-
-  spotifyDebugOverlay('=== Spotify token exchange ===\nredirect_uri: ' + redirectUri + '\nclient_id: ' + clientId.slice(0,8) + '...\ncode: ' + code.slice(0,12) + '...\nverifier: ' + (verifier ? verifier.slice(0,12) + '...' : 'LEEG!'));
-
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type:    'authorization_code',
-      code,
-      redirect_uri:  redirectUri,
-      client_id:     clientId,
-      code_verifier: verifier,
-    }),
-  });
-  const text = await res.text();
-  spotifyDebugOverlay('HTTP status: ' + res.status + '\nAntwoord (eerste 400 tekens):\n' + text.slice(0, 400));
-  let data;
-  try { data = JSON.parse(text); }
-  catch(e) {
-    throw new Error('Zie debug-overlay — HTTP ' + res.status);
-  }
-  if (!res.ok || data.error) throw new Error(data.error_description || data.error || 'HTTP ' + res.status);
-  return data;
-}
-
-async function loginSpotify(pendingPlId) {
-  const cid = getSpotifyClientId();
-  if (!cid) { toast('Spotify Client ID niet ingesteld. Zie beheer → Spotify koppeling.', 'err'); return; }
-  if (pendingPlId) sessionStorage.setItem('spotify_pending_pl', pendingPlId);
-  const { verifier, challenge } = await pkceChallenge();
-  // Fix-9: gebruik altijd canonieke redirect URI (zonder index.html, met trailing slash)
-  const redirectUri = getSpotifyRedirectUri();
-  sessionStorage.setItem('spotify_pkce_verifier', verifier);
-  console.log('Spotify login redirect_uri:', redirectUri);
-  const url = 'https://accounts.spotify.com/authorize'
-    + '?client_id='             + encodeURIComponent(cid)
-    + '&response_type=code'
-    + '&redirect_uri='          + encodeURIComponent(redirectUri)
-    + '&scope='                 + encodeURIComponent(SPOTIFY_SCOPES)
-    + '&code_challenge_method=S256'
-    + '&code_challenge='        + encodeURIComponent(challenge)
-    + '&show_dialog=false';
-  location.href = url;
-}
-
-// --- Callback afhandelen: staat onderaan zodat alle functies beschikbaar zijn ---
-// Wordt aangeroepen via window.onload om zeker te zijn dat toast() e.a. klaar zijn
-window.addEventListener('load', async function spotifyCallback() {
-  const params = new URLSearchParams(location.search);
-  const code   = params.get('code');
-  const error  = params.get('error');
-  if (error) {
-    history.replaceState(null, '', location.pathname);
-    toast('Spotify login geannuleerd.', 'err');
-    return;
-  }
-  if (!code) return;
-  const verifier = sessionStorage.getItem('spotify_pkce_verifier');
-  if (!verifier) {
-    history.replaceState(null, '', location.pathname);
-    toast('Spotify login mislukt (sessie verlopen, probeer opnieuw).', 'err');
-    return;
-  }
-  // Verwijder code pas ná succesvolle uitwisseling
-  try {
-    sessionStorage.removeItem('spotify_pkce_verifier');
-    const data = await spotifyExchangeCode(code, verifier);
-    history.replaceState(null, '', location.pathname);
-    spotifyToken = data.access_token;
-    sessionStorage.setItem('spotify_token', spotifyToken);
-    sessionStorage.setItem('spotify_token_exp', Date.now() + (data.expires_in - 60) * 1000);
-    toast('Spotify verbonden ✓', 'ok');
-    const pending = sessionStorage.getItem('spotify_pending_pl');
-    if (pending) {
-      sessionStorage.removeItem('spotify_pending_pl');
-      setTimeout(() => doSpotifyExport(pending), 500);
-    }
-    initSpotifyBeheer();
-  } catch(e) {
-    history.replaceState(null, '', location.pathname);
-    toast('Spotify verbinden mislukt: ' + e.message, 'err');
-  }
-});
-
-window.exportToSpotify = async function() {
-  if (!getSpotifyClientId()) {
-    toast('Voer eerst een Spotify Client ID in (zie Beheer → Spotify koppeling).','err');
-    return;
-  }
-  const pl = playlists.find(p=>p.id===activePlaylistId);
-  if (!pl?.ids?.length) { toast('Playlist is leeg.','err'); return; }
-  const token = getSpotifyToken();
-  if (!token) { loginSpotify(activePlaylistId); return; }
-  await doSpotifyExport(activePlaylistId, token);
-};
-
-async function doSpotifyExport(plId, token) {
-  token = token || getSpotifyToken();
-  if (!token) { loginSpotify(plId); return; }
-  const pl = playlists.find(p=>p.id===plId);
-  if (!pl) { toast('Playlist niet gevonden.','err'); return; }
-  toast('Bezig met exporteren naar Spotify…','ok');
-  try {
-    spotifyDebugOverlay('=== Spotify export start ===\nPlaylist: ' + pl.name + '\nAantal items: ' + pl.ids.length);
-
-    const meRes = await fetch('https://api.spotify.com/v1/me', {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    const meText = await meRes.text();
-    spotifyDebugOverlay('GET /me → HTTP ' + meRes.status + '\n' + meText.slice(0, 200));
-    if (meRes.status === 401) {
-      spotifyToken = null;
-      sessionStorage.removeItem('spotify_token');
-      sessionStorage.removeItem('spotify_token_exp');
-      await loginSpotify(plId);
-      return;
-    }
-    const me = JSON.parse(meText);
-    const userId = me.id;
-
-    const createRes = await fetch('https://api.spotify.com/v1/users/' + userId + '/playlists', {
-      method: 'POST',
-      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: pl.name, description: 'Geëxporteerd vanuit MuziekApp', public: false })
-    });
-    const createText = await createRes.text();
-    spotifyDebugOverlay('POST /playlists → HTTP ' + createRes.status + '\n' + createText.slice(0, 300));
-    const created = JSON.parse(createText);
-    const spotifyPlId = created.id;
-    // Fix-7: duidelijke foutmelding als playlist aanmaken mislukt
-    if (!spotifyPlId) {
-      const reden = created.error?.message || createRes.status;
-      throw new Error('Playlist aanmaken mislukt (' + reden + '). Controleer je Spotify-rechten (scope playlist-modify-public/private).');
-    }
-
-    const trackUris = [];
-    let gevonden = 0, niet_gevonden = 0;
-    for (const id of pl.ids) {
-      let artist = '', trackTitle = '', albumTitle = '';
-      if (id.includes('_t')) {
-        const t = trackItems[id];
-        if (!t) continue;
-        artist = t.artist; trackTitle = t.title;
-      } else {
-        const a = albums.find(x=>x.id===id);
-        if (!a) continue;
-        artist = a.artist; trackTitle = a.title;
-      }
-      const q = encodeURIComponent((artist ? 'artist:' + artist + ' ' : '') + 'track:' + trackTitle);
-      try {
-        const sRes = await fetch('https://api.spotify.com/v1/search?q=' + q + '&type=track&limit=1', {
-          headers: { Authorization: 'Bearer ' + token }
-        });
-        const sData = await sRes.json();
-        const uri = sData?.tracks?.items?.[0]?.uri;
-        if (uri) { trackUris.push(uri); gevonden++; } else { niet_gevonden++; }
-      } catch(e) { niet_gevonden++; }
-      await new Promise(r => setTimeout(r, 100));
-    }
-
-    for (let i = 0; i < trackUris.length; i += 100) {
-      await fetch('https://api.spotify.com/v1/playlists/' + spotifyPlId + '/tracks', {
-        method: 'POST',
-        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uris: trackUris.slice(i, i + 100) })
-      });
-    }
-
-    const spotifyUrl = 'https://open.spotify.com/playlist/' + spotifyPlId;
-    toast('Geëxporteerd: ' + gevonden + ' gevonden, ' + niet_gevonden + ' niet gevonden.','ok');
-    setTimeout(() => window.open(spotifyUrl, '_blank'), 1000);
-  } catch(err) {
-    console.error('Spotify export fout:', err);
-    toast('Spotify export mislukt: ' + err.message,'err');
-  }
-}
-
-window.saveSpotifyClientId = function(val) {
-  localStorage.setItem('spotify_client_id', val.trim());
-  window._spotifyClientIdOverride = val.trim();
-};
-
-function initSpotifyBeheer() {
-  const stored = localStorage.getItem('spotify_client_id');
-  const inp = document.getElementById('spotifyClientIdInput');
-  if (inp && stored) { inp.value = stored; window._spotifyClientIdOverride = stored; }
-  const statusEl = document.getElementById('spotifyStatus');
-  if (!statusEl) return;
-  const token = getSpotifyToken();
-  statusEl.textContent = token ? '✓ Verbonden met Spotify (token actief)' : 'Nog niet verbonden.';
-  statusEl.style.color = token ? 'var(--green)' : 'var(--muted)';
-}
-
-window.testSpotifyLogin = function() {
-  const id = document.getElementById('spotifyClientIdInput')?.value?.trim();
-  if (!id) { toast('Vul eerst een Client ID in.','err'); return; }
-  localStorage.setItem('spotify_client_id', id);
-  window._spotifyClientIdOverride = id;
-  loginSpotify(null);
-};
-// Einde fix-4 Spotify export (PKCE)
 
 // ── FILTERS & STATS ───────────────────────────────────────────────
 function updateFilters() {
@@ -3907,7 +3618,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-11" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-11</span>
+    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-12" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-12</span>
   </div>
 </div>`,
 
