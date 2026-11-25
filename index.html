@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-7 | index.html | Fix: fix-7 — Toast verbeterd, Wissel-knop naar Kies, Spotify foutmelding leesbaarder -->
+<!-- MuziekApp fix-8 | index.html | Fix: fix-8 — Toast boven navigatiebalk, lege staat tekst zonder "linkerkolom" -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -457,11 +457,11 @@ header { display:flex; align-items:center; justify-content:space-between; paddin
 .tag-chip button:hover { color:var(--accent); }
 
 /* ── TOAST ── */
-/* Fix-7: toast breder, tekst wrapping, langere tijd bij fouten */
-.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(60px); background:var(--surface2); border:1px solid var(--border); border-radius:9px; padding:10px 16px; font-size:13px; color:var(--text); z-index:400; opacity:0; transition:all .25s; max-width:calc(100vw - 32px); width:max-content; white-space:pre-wrap; word-break:break-word; box-shadow:0 4px 16px rgba(0,0,0,.4); text-align:center; }
-.toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
-.toast.ok { border-left:3px solid var(--green); }
-.toast.err { border-left:3px solid var(--accent); }
+/* Fix-8: toast boven navigatiebalk, breed, tekst wrapping */
+.toast { position:fixed; bottom:80px; left:16px; right:16px; transform:translateY(40px); background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:14px 18px; font-size:14px; line-height:1.4; color:var(--text); z-index:9999; opacity:0; transition:all .3s; white-space:normal; word-break:break-word; box-shadow:0 4px 24px rgba(0,0,0,.5); text-align:left; }
+.toast.show { transform:translateY(0); opacity:1; }
+.toast.ok { border-left:4px solid var(--green); }
+.toast.err { border-left:4px solid var(--accent); }
 
 /* ── LOADING ── */
 .fb-loading { display:flex; align-items:center; justify-content:center; height:100%; gap:10px; color:var(--muted); font-size:14px; }
@@ -732,7 +732,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <!-- Fix-4: householdId zichtbaar voor diagnose -->
     <div id="householdDebug" style="font-size:9px;color:var(--muted);margin-top:2px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Household ID (debug)"></div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center">
-      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-7</span>
+      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-8</span>
     </div>
   </div>
 </aside>
@@ -793,7 +793,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <div class="empty">
       <div class="empty-icon">📋</div>
       <h3>Geen playlist gekozen</h3>
-      <p>Kies een playlist in de linkerkolom, of maak een nieuwe aan.</p>
+      <p>Kies een playlist uit de lijst, of maak er een aan via <strong>+ Nieuw</strong>.</p>
     </div>
   </div>
   <div class="dz-strip" id="dzStrip" style="display:none">
@@ -1774,7 +1774,7 @@ function renderPanel() {
 
   if (!activePlaylistId) {
     hdr.style.display='none'; dzs.style.display='none';
-    list.innerHTML='<div class="empty"><div class="empty-icon">📋</div><h3>Geen playlist gekozen</h3><p>Kies een playlist in de linkerkolom, of maak een nieuwe aan.</p></div>';
+    list.innerHTML='<div class="empty"><div class="empty-icon">📋</div><h3>Geen playlist gekozen</h3><p>Kies een playlist uit de lijst, of maak er een aan via <strong>+ Nieuw</strong>.</p></div>';
     return;
   }
   const pl = playlists.find(p=>p.id===activePlaylistId);
@@ -3870,7 +3870,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-7" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-7</span>
+    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-8" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-8</span>
   </div>
 </div>`,
 
