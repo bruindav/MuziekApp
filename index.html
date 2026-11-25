@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-9 | index.html | Fix: fix-9 — Spotify redirect_uri altijd canoniek (trailing slash, geen index.html) -->
+<!-- MuziekApp fix-10 | index.html | Fix: fix-10 — Spotify debug-overlay voor diagnostiek -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -732,7 +732,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <!-- Fix-4: householdId zichtbaar voor diagnose -->
     <div id="householdDebug" style="font-size:9px;color:var(--muted);margin-top:2px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Household ID (debug)"></div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center">
-      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-9</span>
+      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-10</span>
     </div>
   </div>
 </aside>
@@ -3463,9 +3463,31 @@ function getSpotifyRedirectUri() {
   return base.endsWith('/') ? base : base + '/';
 }
 
+// Fix-9: debug-overlay — toont Spotify token-uitwisseling details op het scherm
+function spotifyDebugOverlay(info) {
+  let el = document.getElementById('spotify-debug-overlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'spotify-debug-overlay';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.92);color:#0f0;font-family:monospace;font-size:12px;padding:16px;overflow:auto;z-index:99999;white-space:pre-wrap;word-break:break-all';
+    const btn = document.createElement('button');
+    btn.textContent = '✕ Sluiten';
+    btn.style.cssText = 'display:block;margin-bottom:12px;padding:8px 16px;background:#333;color:#fff;border:none;border-radius:4px;font-size:14px;cursor:pointer';
+    btn.onclick = () => el.remove();
+    el.appendChild(btn);
+    document.body.appendChild(el);
+  }
+  const pre = document.createElement('pre');
+  pre.textContent = info;
+  el.appendChild(pre);
+}
+
 async function spotifyExchangeCode(code, verifier) {
   const redirectUri = getSpotifyRedirectUri();
   const clientId    = getSpotifyClientId();
+
+  spotifyDebugOverlay('=== Spotify token exchange ===\nredirect_uri: ' + redirectUri + '\nclient_id: ' + clientId.slice(0,8) + '...\ncode: ' + code.slice(0,12) + '...\nverifier: ' + (verifier ? verifier.slice(0,12) + '...' : 'LEEG!'));
+
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -3478,13 +3500,11 @@ async function spotifyExchangeCode(code, verifier) {
     }),
   });
   const text = await res.text();
+  spotifyDebugOverlay('HTTP status: ' + res.status + '\nAntwoord (eerste 400 tekens):\n' + text.slice(0, 400));
   let data;
   try { data = JSON.parse(text); }
   catch(e) {
-    // Fix-9: redirect_uri mismatch geeft HTML terug — toon HTTP status en begin van antwoord
-    console.error('Spotify token exchange fout. Status:', res.status, 'Body:', text.slice(0, 300));
-    console.error('Gebruikte redirect_uri:', redirectUri);
-    throw new Error('Token uitwisseling mislukt (HTTP ' + res.status + '). Controleer of "' + redirectUri + '" in je Spotify Dashboard staat onder Redirect URIs.');
+    throw new Error('Zie debug-overlay — HTTP ' + res.status);
   }
   if (!res.ok || data.error) throw new Error(data.error_description || data.error || 'HTTP ' + res.status);
   return data;
@@ -3881,7 +3901,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-9" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-9</span>
+    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-10" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-10</span>
   </div>
 </div>`,
 
