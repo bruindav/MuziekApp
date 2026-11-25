@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-10 | index.html | Fix: fix-10 — Spotify debug-overlay voor diagnostiek -->
+<!-- MuziekApp fix-11 | index.html | Fix: fix-11 — Spotify export debug-logging -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -732,7 +732,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <!-- Fix-4: householdId zichtbaar voor diagnose -->
     <div id="householdDebug" style="font-size:9px;color:var(--muted);margin-top:2px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Household ID (debug)"></div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center">
-      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-10</span>
+      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-11</span>
     </div>
   </div>
 </aside>
@@ -3588,9 +3588,13 @@ async function doSpotifyExport(plId, token) {
   if (!pl) { toast('Playlist niet gevonden.','err'); return; }
   toast('Bezig met exporteren naar Spotify…','ok');
   try {
+    spotifyDebugOverlay('=== Spotify export start ===\nPlaylist: ' + pl.name + '\nAantal items: ' + pl.ids.length);
+
     const meRes = await fetch('https://api.spotify.com/v1/me', {
       headers: { Authorization: 'Bearer ' + token }
     });
+    const meText = await meRes.text();
+    spotifyDebugOverlay('GET /me → HTTP ' + meRes.status + '\n' + meText.slice(0, 200));
     if (meRes.status === 401) {
       spotifyToken = null;
       sessionStorage.removeItem('spotify_token');
@@ -3598,7 +3602,7 @@ async function doSpotifyExport(plId, token) {
       await loginSpotify(plId);
       return;
     }
-    const me = await meRes.json();
+    const me = JSON.parse(meText);
     const userId = me.id;
 
     const createRes = await fetch('https://api.spotify.com/v1/users/' + userId + '/playlists', {
@@ -3606,7 +3610,9 @@ async function doSpotifyExport(plId, token) {
       headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: pl.name, description: 'Geëxporteerd vanuit MuziekApp', public: false })
     });
-    const created = await createRes.json();
+    const createText = await createRes.text();
+    spotifyDebugOverlay('POST /playlists → HTTP ' + createRes.status + '\n' + createText.slice(0, 300));
+    const created = JSON.parse(createText);
     const spotifyPlId = created.id;
     // Fix-7: duidelijke foutmelding als playlist aanmaken mislukt
     if (!spotifyPlId) {
@@ -3901,7 +3907,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-10" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-10</span>
+    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-11" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-11</span>
   </div>
 </div>`,
 
