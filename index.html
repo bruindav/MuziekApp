@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-4 | index.html | Fix: fix-4 — Foutafhandeling playlists, fixnummer fix-4 OAuth omgezet naar Authorization Code + PKCE (Implicit Grant afgeschaft) -->
+<!-- MuziekApp fix-5 | index.html | Fix: fix-5 — Dubbele deploy-workflow verwijderd, fixnummer fix-5 omgezet naar Authorization Code + PKCE (Implicit Grant afgeschaft) -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -731,7 +731,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <!-- Fix-4: householdId zichtbaar voor diagnose -->
     <div id="householdDebug" style="font-size:9px;color:var(--muted);margin-top:2px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Household ID (debug)"></div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center">
-      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-4</span>
+      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-5</span>
     </div>
   </div>
 </aside>
@@ -3401,7 +3401,7 @@ window.exportPlaylistCSV = function() {
 };
 function dl(content,name,type) { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
 
-// Fix: fix-4 — Foutafhandeling playlists, fixnummer fix-4 OAuth: Authorization Code + PKCE (Implicit Grant afgeschaft door Spotify)
+// Fix: fix-5 — Dubbele deploy-workflow verwijderd, fixnummer fix-5: Authorization Code + PKCE (Implicit Grant afgeschaft door Spotify)
 const SPOTIFY_CLIENT_ID = '74886671e38a47c4b306d83fc17f78ab';
 const SPOTIFY_SCOPES    = 'playlist-modify-public playlist-modify-private';
 
@@ -3849,7 +3849,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-4" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-4</span>
+    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-5" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-5</span>
   </div>
 </div>`,
 
