@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-3 | index.html | Fix: fix-3 — Spotify OAuth omgezet naar Authorization Code + PKCE (Implicit Grant afgeschaft) -->
+<!-- MuziekApp fix-4 | index.html | Fix: fix-4 — Foutafhandeling playlists, fixnummer fix-4 OAuth omgezet naar Authorization Code + PKCE (Implicit Grant afgeschaft) -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -728,8 +728,10 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <div style="font-size:11px;color:var(--muted);display:flex;justify-content:space-between">
       <span>Firebase</span><span id="fbSyncStatus" style="color:var(--green)">●</span>
     </div>
+    <!-- Fix-4: householdId zichtbaar voor diagnose -->
+    <div id="householdDebug" style="font-size:9px;color:var(--muted);margin-top:2px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Household ID (debug)"></div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center">
-      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-3</span>
+      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-4</span>
     </div>
   </div>
 </aside>
@@ -1363,6 +1365,9 @@ function showApp(hasHouseholdAccess) {
   const isOwner = currentUser.uid === OWNER_UID;
   const suffix = (!isOwner && hasHouseholdAccess) ? ' (gedeeld)' : '';
   document.getElementById('userName').textContent = name + suffix;
+  // Fix-4: toon household-id in debug-regel (helpt bij diagnose)
+  const dbg = document.getElementById('householdDebug');
+  if (dbg) dbg.textContent = householdId ? '🏠 ' + householdId.slice(0,12) + '…' : '⚠ geen household';
   initUserManagement();
   renderStreamOptions();
   updateStreamButtons();
@@ -1447,9 +1452,17 @@ function startListeners() {
     toast('Firestore fout: ' + err.message, 'err');
   });
 
+  // Fix-4: foutafhandeling op playlist-listener
   const u2 = onSnapshot(query(userCol('playlists'), orderBy('createdAt')), snap => {
     playlists = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     updateStats(); renderPlaylists(); renderPanel();
+  }, err => {
+    console.error('Playlist listener fout:', err.code, err.message);
+    if (err.code === 'permission-denied') {
+      toast('Playlists: geen leesrechten in Firestore — pas de beveiligingsregels aan', 'err');
+    } else {
+      toast('Playlists laden mislukt: ' + (err.code || err.message), 'err');
+    }
   });
 
   const u3 = onSnapshot(userCol('trackItems'), snap => {
@@ -1687,11 +1700,28 @@ window.confirmNewPlaylist = async function() {
   const name = document.getElementById('newPlName').value.trim();
   if (!name) return;
   closeModal('newPlOverlay');
-  const ref = await addDoc(userCol('playlists'), { name, ids:[], createdAt: serverTimestamp() });
-  activePlaylistId = ref.id;
-  renderPlaylists();
-  renderPanel();
-  toast('Playlist "'+name+'" aangemaakt ✓', 'ok');
+  // Fix-4: foutafhandeling zodat Firestore-fouten zichtbaar worden
+  if (!householdId) {
+    toast('Niet ingelogd — kan playlist niet opslaan', 'err');
+    console.error('confirmNewPlaylist: householdId is null, currentUser=', currentUser);
+    return;
+  }
+  try {
+    const ref = await addDoc(userCol('playlists'), { name, ids:[], createdAt: serverTimestamp() });
+    activePlaylistId = ref.id;
+    renderPlaylists();
+    renderPanel();
+    toast('Playlist "'+name+'" aangemaakt ✓', 'ok');
+  } catch(e) {
+    console.error('Playlist aanmaken mislukt:', e.code, e.message);
+    if (e.code === 'permission-denied') {
+      toast('Firestore: geen schrijfrechten — controleer de beveiligingsregels', 'err');
+    } else if (e.code === 'unavailable') {
+      toast('Geen verbinding met Firestore — ben je offline?', 'err');
+    } else {
+      toast('Playlist opslaan mislukt: ' + (e.code || e.message), 'err');
+    }
+  }
 };
 
 window.renamePlaylist = async function(val) {
@@ -3371,7 +3401,7 @@ window.exportPlaylistCSV = function() {
 };
 function dl(content,name,type) { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
 
-// Fix: fix-3 — Spotify OAuth: Authorization Code + PKCE (Implicit Grant afgeschaft door Spotify)
+// Fix: fix-4 — Foutafhandeling playlists, fixnummer fix-4 OAuth: Authorization Code + PKCE (Implicit Grant afgeschaft door Spotify)
 const SPOTIFY_CLIENT_ID = '74886671e38a47c4b306d83fc17f78ab';
 const SPOTIFY_SCOPES    = 'playlist-modify-public playlist-modify-private';
 
@@ -3598,7 +3628,7 @@ window.testSpotifyLogin = function() {
   window._spotifyClientIdOverride = id;
   loginSpotify(null);
 };
-// Einde fix-3 Spotify export (PKCE)
+// Einde fix-4 Spotify export (PKCE)
 
 // ── FILTERS & STATS ───────────────────────────────────────────────
 function updateFilters() {
@@ -3819,7 +3849,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-3" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-3</span>
+    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-4" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-4</span>
   </div>
 </div>`,
 
