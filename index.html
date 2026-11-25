@@ -1,4 +1,5 @@
-<!-- MuziekApp V70 | index.html | Laatste wijziging: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
+<!-- MuziekApp fix-1 | index.html | Fix: fix-1 — Spotify playlist export via OAuth: knop in playlist panel, beheer-kaartje voor Client ID -->
+<!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -531,6 +532,7 @@ tbody tr:hover .row-actions { opacity:1; }
 .pbtn-spotify:hover { opacity:.85; transform:translateY(-1px); }
 .pbtn-json { background:var(--surface2); border:1px solid var(--border); color:var(--text); }
 .pbtn-csv  { background:var(--surface2); border:1px solid var(--border); color:var(--text); }
+.pbtn-spotify-export { background:linear-gradient(135deg,#1db954,#158a3e); color:white; border:none; }
 
 /* Streaming dienst kiezer */
 .stream-options { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
@@ -775,6 +777,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <div class="panel-meta" id="panelMeta">0 items</div>
     <div class="panel-btns">
       <button class="pbtn" id="panelStreamBtn" onclick="openPlaylistStream()" style="display:none"></button>
+      <button class="pbtn pbtn-spotify-export" onclick="exportToSpotify()" title="Exporteer playlist naar Spotify">↑ Spotify</button>
       <button class="pbtn pbtn-json" onclick="exportJSON()">↓ JSON</button>
       <button class="pbtn pbtn-csv" onclick="exportPlaylistCSV()">↓ CSV</button>
     </div>
@@ -885,6 +888,25 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
           Kies welke dienst wordt gebruikt bij het afspelen van tracks en albums.
         </p>
         <div class="stream-options" id="streamOptions"></div>
+      </div>
+    </div>
+
+    <!-- Spotify Koppeling -->
+    <div class="beheer-card" id="card-spotify">
+      <div class="beheer-card-header" onclick="toggleCard('card-spotify');initSpotifyBeheer()">
+        <h3>🟢 Spotify Koppeling</h3>
+        <span class="beheer-card-chevron">▶</span>
+      </div>
+      <div class="beheer-card-body">
+        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">
+          Om playlists naar Spotify te exporteren heb je een gratis Spotify developer account nodig.<br>
+          Registreer je app op <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:var(--spotify)">developer.spotify.com</a>, voeg <strong style="color:var(--text)">https://bruindav.github.io/MuziekApp/</strong> toe als Redirect URI, en plak hier je Client ID.
+        </p>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <input class="form-input" id="spotifyClientIdInput" placeholder="Spotify Client ID…" style="flex:1;font-family:monospace;font-size:12px" oninput="saveSpotifyClientId(this.value)">
+          <button class="btn-primary" style="background:var(--spotify);border-color:var(--spotify)" onclick="testSpotifyLogin()">Verbinden</button>
+        </div>
+        <div id="spotifyStatus" style="font-size:11px;color:var(--muted)">Nog niet verbonden.</div>
       </div>
     </div>
 
@@ -1342,6 +1364,7 @@ function showApp(hasHouseholdAccess) {
   renderStreamOptions();
   updateStreamButtons();
   checkFirstLogin(currentUser.uid);
+  initSpotifyBeheer();
   switchTab('bibliotheek');
 }
 
@@ -3344,6 +3367,163 @@ window.exportPlaylistCSV = function() {
   toast('CSV geëxporteerd ✓','ok');
 };
 function dl(content,name,type) { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
+
+// Fix: fix-1 — Spotify playlist export via OAuth (Implicit Grant)
+const SPOTIFY_CLIENT_ID = '74886671e38a47c4b306d83fc17f78ab';
+const SPOTIFY_REDIRECT   = location.origin + location.pathname;
+const SPOTIFY_SCOPES     = 'playlist-modify-public playlist-modify-private';
+
+let spotifyToken = null;
+
+(function checkSpotifyCallback() {
+  const hash = location.hash;
+  if (!hash.includes('access_token')) return;
+  const params = new URLSearchParams(hash.slice(1));
+  const token = params.get('access_token');
+  if (!token) return;
+  spotifyToken = token;
+  history.replaceState(null, '', location.pathname + location.search);
+  sessionStorage.setItem('spotify_token', token);
+  toast('Spotify verbonden ✓','ok');
+  const pending = sessionStorage.getItem('spotify_pending_pl');
+  if (pending) {
+    sessionStorage.removeItem('spotify_pending_pl');
+    setTimeout(() => doSpotifyExport(pending), 500);
+  }
+})();
+
+function getSpotifyToken() {
+  if (spotifyToken) return spotifyToken;
+  const stored = sessionStorage.getItem('spotify_token');
+  if (stored) { spotifyToken = stored; return stored; }
+  return null;
+}
+
+function getSpotifyClientId() {
+  return window._spotifyClientIdOverride
+    || localStorage.getItem('spotify_client_id')
+    || SPOTIFY_CLIENT_ID;
+}
+
+function loginSpotify(pendingPlId) {
+  const cid = getSpotifyClientId();
+  if (!cid) { toast('Spotify Client ID niet ingesteld. Zie beheer → Spotify koppeling.','err'); return; }
+  if (pendingPlId) sessionStorage.setItem('spotify_pending_pl', pendingPlId);
+  const url = 'https://accounts.spotify.com/authorize'
+    + '?client_id=' + encodeURIComponent(cid)
+    + '&response_type=token'
+    + '&redirect_uri=' + encodeURIComponent(SPOTIFY_REDIRECT)
+    + '&scope=' + encodeURIComponent(SPOTIFY_SCOPES)
+    + '&show_dialog=false';
+  location.href = url;
+}
+
+window.exportToSpotify = async function() {
+  if (!getSpotifyClientId()) {
+    toast('Voer eerst een Spotify Client ID in (zie Beheer → Spotify koppeling).','err');
+    return;
+  }
+  const pl = playlists.find(p=>p.id===activePlaylistId);
+  if (!pl?.ids?.length) { toast('Playlist is leeg.','err'); return; }
+  const token = getSpotifyToken();
+  if (!token) { loginSpotify(activePlaylistId); return; }
+  await doSpotifyExport(activePlaylistId, token);
+};
+
+async function doSpotifyExport(plId, token) {
+  token = token || getSpotifyToken();
+  if (!token) { loginSpotify(plId); return; }
+  const pl = playlists.find(p=>p.id===plId);
+  if (!pl) { toast('Playlist niet gevonden.','err'); return; }
+  toast('Bezig met exporteren naar Spotify…','ok');
+  try {
+    const meRes = await fetch('https://api.spotify.com/v1/me', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (meRes.status === 401) {
+      spotifyToken = null;
+      sessionStorage.removeItem('spotify_token');
+      loginSpotify(plId);
+      return;
+    }
+    const me = await meRes.json();
+    const userId = me.id;
+
+    const createRes = await fetch('https://api.spotify.com/v1/users/' + userId + '/playlists', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: pl.name, description: 'Geëxporteerd vanuit MuziekApp', public: false })
+    });
+    const created = await createRes.json();
+    const spotifyPlId = created.id;
+    if (!spotifyPlId) throw new Error('Playlist aanmaken mislukt');
+
+    const trackUris = [];
+    let gevonden = 0, niet_gevonden = 0;
+    for (const id of pl.ids) {
+      let artist = '', trackTitle = '', albumTitle = '';
+      if (id.includes('_t')) {
+        const t = trackItems[id];
+        if (!t) continue;
+        artist = t.artist; trackTitle = t.title;
+      } else {
+        const a = albums.find(x=>x.id===id);
+        if (!a) continue;
+        artist = a.artist; trackTitle = a.title;
+      }
+      const q = encodeURIComponent((artist ? 'artist:' + artist + ' ' : '') + 'track:' + trackTitle);
+      try {
+        const sRes = await fetch('https://api.spotify.com/v1/search?q=' + q + '&type=track&limit=1', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        const sData = await sRes.json();
+        const uri = sData?.tracks?.items?.[0]?.uri;
+        if (uri) { trackUris.push(uri); gevonden++; } else { niet_gevonden++; }
+      } catch(e) { niet_gevonden++; }
+      await new Promise(r => setTimeout(r, 100));
+    }
+
+    for (let i = 0; i < trackUris.length; i += 100) {
+      await fetch('https://api.spotify.com/v1/playlists/' + spotifyPlId + '/tracks', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uris: trackUris.slice(i, i + 100) })
+      });
+    }
+
+    const spotifyUrl = 'https://open.spotify.com/playlist/' + spotifyPlId;
+    toast('Geëxporteerd: ' + gevonden + ' gevonden, ' + niet_gevonden + ' niet gevonden.','ok');
+    setTimeout(() => window.open(spotifyUrl, '_blank'), 1000);
+  } catch(err) {
+    console.error('Spotify export fout:', err);
+    toast('Spotify export mislukt: ' + err.message,'err');
+  }
+}
+
+window.saveSpotifyClientId = function(val) {
+  localStorage.setItem('spotify_client_id', val.trim());
+  window._spotifyClientIdOverride = val.trim();
+};
+
+function initSpotifyBeheer() {
+  const stored = localStorage.getItem('spotify_client_id');
+  const inp = document.getElementById('spotifyClientIdInput');
+  if (inp && stored) { inp.value = stored; window._spotifyClientIdOverride = stored; }
+  const statusEl = document.getElementById('spotifyStatus');
+  if (!statusEl) return;
+  const token = getSpotifyToken();
+  statusEl.textContent = token ? '✓ Verbonden met Spotify (token actief)' : 'Nog niet verbonden.';
+  statusEl.style.color = token ? 'var(--green)' : 'var(--muted)';
+}
+
+window.testSpotifyLogin = function() {
+  const id = document.getElementById('spotifyClientIdInput')?.value?.trim();
+  if (!id) { toast('Vul eerst een Client ID in.','err'); return; }
+  localStorage.setItem('spotify_client_id', id);
+  window._spotifyClientIdOverride = id;
+  loginSpotify(null);
+};
+// Einde fix-1 Spotify export
 
 // ── FILTERS & STATS ───────────────────────────────────────────────
 function updateFilters() {
