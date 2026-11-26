@@ -1,6 +1,28 @@
 {
   "fixes": [
     {
+      "fix": "fix-15",
+      "bestanden": [
+        {
+          "pad": "tests/e2e/filters.spec.ts",
+          "status": "nieuw",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-15/tests/e2e/filters.spec.ts",
+          "tests": [
+            "zonder filter is de wisknop niet zichtbaar",
+            "na kiezen van een genre zet de wisknop het filter in één tik terug op alle genres",
+            "de wisknop wist ook het jaarfilter",
+            "filterbalk met wisknop past op het scherm"
+          ]
+        },
+        {
+          "pad": "tests/e2e/firebase-stub.ts",
+          "status": "aangepast",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-15/tests/e2e/firebase-stub.ts",
+          "tests": []
+        }
+      ]
+    },
+    {
       "fix": "fix-14",
       "bestanden": [
         {
