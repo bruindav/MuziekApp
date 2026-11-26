@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-18 | index.html | Fix: fix-18 — aanvullen van alle velden uit het bewerkingsscherm, ook via Discogs -->
+<!-- MuziekApp fix-19 | index.html | Fix: fix-19 — MusicBrainz-verzoeken via één wachtrij, 503 opnieuw proberen -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -709,7 +709,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   <button class="tab" onclick="switchTab('beheer')">⚙️ <span class="tab-label">Beheer</span></button>
   <!-- Fix-14: footer met fixnummer, altijd zichtbaar: op mobiel onder de tabs, op desktop rechts in de tabbalk -->
   <div class="app-footer" style="display:flex;margin-left:auto;align-self:center;justify-content:center;align-items:center;gap:6px;height:16px;font-size:10px;line-height:16px;color:var(--muted)">
-    <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-18" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none;padding:0 6px">fix-18</span>
+    <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-19" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none;padding:0 6px">fix-19</span>
     <span aria-hidden="true">·</span><span>gemaakt door digidave</span>
   </div>
 </div>
@@ -1869,10 +1869,8 @@ async function beleefdWachten(dienst, standaardMs) {
   if (wacht > 0) await new Promise(r => setTimeout(r, wacht));
   laatsteVerzoek[dienst] = Date.now();
 }
-async function mbBeleefd(url) {
-  await beleefdWachten('mb', 1100);
-  return mbFetch(url);
-}
+// Fix-19: mbFetch wacht zelf al (wachtrij voor alle MusicBrainz-verzoeken)
+const mbBeleefd = mbFetch;
 
 // Uitkomst: { gegevens, discogsId }
 async function zoekBijMusicBrainz(a) {
@@ -1935,7 +1933,8 @@ async function vulAlbumAan(a) {
   }
   const aanvulling = AV.bepaalAanvulling(a, bronnen);
   if (!Object.keys(aanvulling).length) {
-    return fouten.length && !Object.keys(bronnen).length ? { status: 'fout', fout: fouten.join('; ') } : { status: 'niet-gevonden' };
+    // Fix-19: lukte een bron niet, dan is "niet gevonden" niet zeker; meld de fout zodat je opnieuw kunt proberen
+    return fouten.length ? { status: 'fout', fout: fouten.join('; ') } : { status: 'niet-gevonden' };
   }
   await updateDoc(userDoc('albums', a.id), AV.naarUpdate(aanvulling));
   return { status: 'aangevuld', aanvulling };
@@ -1975,7 +1974,10 @@ function toonAanvulResultaten(inhoud, resultaten) {
     tel('niet-gevonden') && tel('niet-gevonden') + ' niet gevonden',
     tel('fout') && tel('fout') + ' mislukt',
   ].filter(Boolean).join(', ');
+  // Fix-19: mislukte albums (bijv. MusicBrainz even te druk) in één tik opnieuw proberen
+  const mislukt = resultaten.filter(r => r.status === 'fout').map(r => r.album.id);
   inhoud.innerHTML = '<p role="status" style="margin:0 0 10px;color:var(--text)">Klaar: ' + esc(samenvatting) + '.</p>' +
+    (mislukt.length ? '<button type="button" class="pbtn pbtn-json" data-opnieuw style="margin-bottom:10px">↻ Mislukte opnieuw proberen</button>' : '') +
     resultaten.map((r, i) => {
       const kop = '<div style="font-weight:600;color:var(--text)">' + esc(r.album.artist) + ' – ' + esc(r.album.title) + '</div>';
       let regel;
@@ -1992,6 +1994,7 @@ function toonAanvulResultaten(inhoud, resultaten) {
       }
       return '<div style="padding:10px 0;border-top:1px solid var(--border)">' + kop + regel + '</div>';
     }).join('');
+  inhoud.querySelector('[data-opnieuw]')?.addEventListener('click', () => aanvullenAlbums(mislukt));
   inhoud.querySelectorAll('[data-ongedaan]').forEach(knop => {
     knop.addEventListener('click', async () => {
       const r = resultaten[Number(knop.dataset.ongedaan)];
@@ -2563,11 +2566,35 @@ const MB_FORMAT_MAP = {
   'SACD': 'CD', 'Hybrid SACD': 'CD',
 };
 
-async function mbFetch(url) {
-  const res = await fetch('https://musicbrainz.org/ws/2/' + url + (url.includes('?')?'&':'?') + 'fmt=json',
-    { headers: {'User-Agent':'MuziekApp/1.0 (bruindav.github.io)'} });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.json();
+// Fix-19: ALLE MusicBrainz-verzoeken lopen via deze ene wachtrij.
+// - Max. 1 verzoek per seconde (regel van MusicBrainz; daarboven geeft het HTTP 503).
+// - Geen eigen User-Agent-header meer: die liet de browser eerst een extra (preflight-)verzoek doen,
+//   wat ook meetelde voor de limiet. Browsers sturen hun eigen User-Agent mee.
+// - Bij 503/429 tot 3 keer opnieuw proberen, met steeds langer wachten (2, 4, 8 sec of wat MusicBrainz vraagt).
+let mbWachtrij = Promise.resolve();
+let mbLaatste = 0;
+const slaap = ms => new Promise(r => setTimeout(r, ms));
+function mbFetch(url) {
+  const taak = mbWachtrij.then(() => mbFetchNu(url));
+  mbWachtrij = taak.catch(() => {});
+  return taak;
+}
+async function mbFetchNu(url) {
+  const pauze = globalThis.__mbPauzeMs ?? 1100;
+  for (let poging = 0; ; poging++) {
+    const wacht = mbLaatste + pauze - Date.now();
+    if (wacht > 0) await slaap(wacht);
+    mbLaatste = Date.now();
+    const res = await fetch('https://musicbrainz.org/ws/2/' + url + (url.includes('?')?'&':'?') + 'fmt=json');
+    if ((res.status === 503 || res.status === 429) && poging < 3) {
+      const gevraagd = Number(res.headers.get('Retry-After'));
+      const extra = gevraagd > 0 ? gevraagd * 1000 : 2000 * 2 ** poging;
+      await slaap(pauze ? extra : 0); // in tests (pauze 0) niet wachten
+      continue;
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status + (res.status === 503 ? ' (MusicBrainz is druk, probeer het later opnieuw)' : ''));
+    return res.json();
+  }
 }
 
 async function lookupBarcode(code) {
@@ -3252,9 +3279,8 @@ async function fetchTracks(aid, force=false) {
   if (!album) { trackCache[aid].status='error'; return; }
   try {
     const q = encodeURIComponent('artist:"'+cleanForSearch(album.artist).replace(/"/g,'')+'" AND release:"'+cleanForSearch(album.title).replace(/"/g,'')+'"');
-    const res = await fetch('https://musicbrainz.org/ws/2/release?query='+q+'&limit=10&fmt=json',
-      { headers:{'User-Agent':'MuziekApp/1.0 (bruindav.github.io)'} });
-    const data = await res.json();
+    // Fix-19: via de MusicBrainz-wachtrij
+    const data = await mbFetch('release?query='+q+'&limit=10');
     const raw = data.releases||[];
     if (!raw.length) { await fetchTracksFromDeezer(aid, album); return; }
     const seen=new Set(), unique=[];
@@ -3278,9 +3304,8 @@ async function loadReleaseTracks(aid, idx) {
   const rel = cache.releases[idx];
   if (rel.tracks.length) return;
   try {
-    const res = await fetch('https://musicbrainz.org/ws/2/release/'+rel.id+'?inc=recordings&fmt=json',
-      { headers:{'User-Agent':'MuziekApp/1.0 (bruindav.github.io)'} });
-    const d = await res.json();
+    // Fix-19: via de MusicBrainz-wachtrij
+    const d = await mbFetch('release/'+rel.id+'?inc=recordings');
     let num=1;
     rel.tracks = (d.media||[]).flatMap(disc=>(disc.tracks||[]).map(t=>{
       const ms=t.recording?.length||t.length||0;
@@ -3886,7 +3911,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-18" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-18</span>
+    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-19" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-19</span>
   </div>
 </div>`,
 

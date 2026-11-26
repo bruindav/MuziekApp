@@ -1,6 +1,21 @@
 {
   "fixes": [
     {
+      "fix": "fix-19",
+      "bestanden": [
+        {
+          "pad": "tests/e2e/musicbrainz-limiet.spec.ts",
+          "status": "nieuw",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-19/tests/e2e/musicbrainz-limiet.spec.ts",
+          "tests": [
+            "een 503 van MusicBrainz wordt opnieuw geprobeerd en daarna lukt het aanvullen",
+            "blijft MusicBrainz druk, dan kun je de mislukte albums opnieuw proberen",
+            "albumvenster openen en direct aanvullen: MusicBrainz-verzoeken nooit tegelijk"
+          ]
+        }
+      ]
+    },
+    {
       "fix": "fix-18",
       "bestanden": [
         {

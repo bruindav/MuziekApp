@@ -1,4 +1,4 @@
-<!-- Fix: fix-18 — aanvullen met Discogs via MusicBrainz-link -->
+<!-- Fix: fix-19 — MusicBrainz-wachtrij -->
 # MuziekApp — voor ontwikkelaars en AI-agents
 
 Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruindav.github.io/MuziekApp/
@@ -49,6 +49,12 @@ opent een overzicht per fix: welke testbestanden nieuw of aangepast zijn, met de
 De app-code staat in een `<script type="module">`. Variabelen daarin (`let activeAlpha`, `let editingAlbumId`, …) zijn
 **niet** bereikbaar vanuit inline `onclick="…"`/`oninput="…"`: lezen geeft een fout, schrijven maakt stilletjes een
 nieuwe globale variabele. Roep vanuit HTML altijd een `window.…`-functie aan die de modulevariabele gebruikt.
+
+## MusicBrainz
+
+Alle verzoeken aan MusicBrainz gaan via `mbFetch()` in `index.html`: één wachtrij, max. 1 per seconde, geen eigen
+headers (een eigen `User-Agent` veroorzaakt een extra preflight-verzoek) en 503/429 wordt tot 3 keer opnieuw geprobeerd.
+Roep MusicBrainz nooit rechtstreeks met `fetch` aan, anders volgen er weer HTTP 503-fouten.
 
 ## Let op bij vaste (fixed) elementen
 
