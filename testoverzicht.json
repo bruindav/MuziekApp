@@ -1,6 +1,38 @@
 {
   "fixes": [
     {
+      "fix": "fix-21",
+      "bestanden": [
+        {
+          "pad": "tests/unit/aanvullen.test.mjs",
+          "status": "aangepast",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-21/tests/unit/aanvullen.test.mjs",
+          "tests": [
+            "lege velden herkennen, ook \"0\" en \"—\"",
+            "kiest de MusicBrainz-release waarvan artiest en titel kloppen, ook met \"(Disc 1)\"",
+            "geen MusicBrainz-release als de artiest niet klopt",
+            "haalt genre met meeste stemmen, jaar, label, tracks en lengte uit MusicBrainz",
+            "valt terug op het genre van de release-groep als de release geen genre heeft",
+            "vult alleen lege velden en neemt MusicBrainz vóór iTunes",
+            "gebruikt iTunes als MusicBrainz niets heeft",
+            "update zet ook genreFirst; ongedaan maken maakt de velden weer leeg",
+            "lengte als m:ss en u:mm:ss",
+            "album-id’s van een playlist: albums plus het album van elke track, zonder dubbelen",
+            "geen lengte als niet alle nummers van een medium bekend zijn",
+            "Discogs: credits, barcode, label en drager worden goed gelezen",
+            "drager alleen als dat type in Beheer bestaat",
+            "Discogs-id uit de links van een MusicBrainz-release",
+            "MusicBrainz: origineel jaar, barcode en drager",
+            "credits eerst uit Discogs, overige velden eerst uit MusicBrainz",
+            "nogLeeg telt al gevonden gegevens mee",
+            "de artiest van het album staat niet bij Muzikant",
+            "bij een duo vallen beide artiesten weg bij Muzikant",
+            "alleen de artiest als muzikant: dan wordt Muzikant niet ingevuld, of uit de volgende bron"
+          ]
+        }
+      ]
+    },
+    {
       "fix": "fix-20",
       "bestanden": [
         {

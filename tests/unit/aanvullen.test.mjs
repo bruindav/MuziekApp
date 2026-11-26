@@ -144,3 +144,22 @@ test('nogLeeg telt al gevonden gegevens mee', () => {
   const a = { genre: '', year: '2000', origYear: '2000', label: 'L', tracks: '1', length: '1:00', barcode: '1', deviceType: 'CD', composer: '', producer: 'p', musician: 'm' };
   assert.deepEqual(A.nogLeeg(a, { MusicBrainz: { genre: 'Pop' } }), ['composer']);
 });
+
+// ── Fix-21: de albumartiest zelf niet bij Muzikant ──
+test('de artiest van het album staat niet bij Muzikant', () => {
+  const uit = A.bepaalAanvulling({ artist: 'Aretha Franklin', title: 'A Deeper Love' },
+    { Discogs: { musician: 'Aretha Franklin, Martha Wash' } });
+  assert.deepEqual(uit.musician, { waarde: 'Martha Wash', bron: 'Discogs' });
+});
+
+test('bij een duo vallen beide artiesten weg bij Muzikant', () => {
+  assert.equal(A.zonderArtiest('Aretha Franklin, George Michael, Gitta Gitaar', 'Aretha Franklin & George Michael'), 'Gitta Gitaar');
+});
+
+test('alleen de artiest als muzikant: dan wordt Muzikant niet ingevuld, of uit de volgende bron', () => {
+  const alleenArtiest = A.bepaalAanvulling({ artist: 'Aretha Franklin', title: 'X' }, { Discogs: { musician: 'Aretha Franklin' } });
+  assert.equal(alleenArtiest.musician, undefined);
+  const volgende = A.bepaalAanvulling({ artist: 'Aretha Franklin', title: 'X' },
+    { Discogs: { musician: 'Aretha Franklin' }, MusicBrainz: { musician: 'Martha Wash' } });
+  assert.deepEqual(volgende.musician, { waarde: 'Martha Wash', bron: 'MusicBrainz' });
+});

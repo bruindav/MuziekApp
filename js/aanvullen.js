@@ -1,4 +1,4 @@
-// Fix: fix-16/fix-18 — Ontbrekende albumgegevens aanvullen vanuit MusicBrainz, Discogs en iTunes.
+// Fix: fix-16/fix-18/fix-21 — Ontbrekende albumgegevens aanvullen vanuit MusicBrainz, Discogs en iTunes.
 // fix-18: alle velden uit het bewerkingsscherm die een muziekdienst kan weten (ook barcode, origineel jaar,
 // drager, componist, producer, muzikant). Alleen pure functies (geen fetch, geen DOM), zodat ze los te testen zijn.
 // De app (index.html) haalt de gegevens op en schrijft de wijzigingen weg.
@@ -225,12 +225,23 @@
   // ── Samenvoegen ─────────────────────────────────────────────
   // bronnen: { MusicBrainz: {...}, Discogs: {...}, iTunes: {...} } (een ontbrekende bron mag)
   // Uitkomst: { genre: { waarde: 'Soul', bron: 'MusicBrainz' }, ... } — alleen velden die leeg waren.
+  // Fix-21: de artiest van het album zelf hoort niet bij Muzikant (die staat al bij Artiest).
+  // Ook bij duo's als "Aretha Franklin & George Michael" vallen beide namen weg.
+  function zonderArtiest(namenLijst, artiest) {
+    const artiesten = String(artiest || '').split(/\s*(?:&|,|;|\/|\band\b|\ben\b|\bfeat\.?|\bft\.?|\bwith\b)\s*/i)
+      .map(normaliseer).filter(Boolean);
+    return String(namenLijst || '').split(/\s*,\s*/)
+      .filter(function (n) { return n && artiesten.indexOf(normaliseer(n)) === -1; })
+      .join(', ');
+  }
+
   function bepaalAanvulling(album, bronnen) {
     const uit = {};
     legeVelden(album).forEach(function (veld) {
       const volgorde = VOLGORDE[veld] || STANDAARD_VOLGORDE;
       for (let i = 0; i < volgorde.length; i++) {
-        const w = ((bronnen || {})[volgorde[i]] || {})[veld];
+        let w = ((bronnen || {})[volgorde[i]] || {})[veld];
+        if (veld === 'musician') w = zonderArtiest(w, album.artist);
         if (!isLeeg(w)) {
           uit[veld] = { waarde: String(w).trim().slice(0, MAX[veld]), bron: volgorde[i] };
           break;
@@ -274,7 +285,7 @@
     lijktOp: lijktOp, formatLengte: formatLengte, duurNaarMs: duurNaarMs, kiesDrager: kiesDrager,
     kiesMbRelease: kiesMbRelease, discogsIdUitMb: discogsIdUitMb, uitMusicBrainz: uitMusicBrainz,
     discogsNaam: discogsNaam, uitDiscogs: uitDiscogs, kiesItunesAlbum: kiesItunesAlbum, uitItunes: uitItunes,
-    bepaalAanvulling: bepaalAanvulling, nogLeeg: nogLeeg, naarUpdate: naarUpdate, naarOngedaan: naarOngedaan,
+    zonderArtiest: zonderArtiest, bepaalAanvulling: bepaalAanvulling, nogLeeg: nogLeeg, naarUpdate: naarUpdate, naarOngedaan: naarOngedaan,
     albumIdsVanPlaylist: albumIdsVanPlaylist,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-20 | index.html | Fix: fix-20 — logboek MusicBrainz-verzoeken bij fouten, ruimere wachttijd -->
+<!-- MuziekApp fix-21 | index.html | Fix: fix-21 — albumartiest niet bij Muzikant bij aanvullen -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -709,7 +709,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   <button class="tab" onclick="switchTab('beheer')">⚙️ <span class="tab-label">Beheer</span></button>
   <!-- Fix-14: footer met fixnummer, altijd zichtbaar: op mobiel onder de tabs, op desktop rechts in de tabbalk -->
   <div class="app-footer" style="display:flex;margin-left:auto;align-self:center;justify-content:center;align-items:center;gap:6px;height:16px;font-size:10px;line-height:16px;color:var(--muted)">
-    <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-20" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none;padding:0 6px">fix-20</span>
+    <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-21" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none;padding:0 6px">fix-21</span>
     <span aria-hidden="true">·</span><span>gemaakt door digidave</span>
   </div>
 </div>
@@ -3897,7 +3897,7 @@ help: `
     voor alle albums in die playlist, of op 🔍 bij één album of track (dan wordt het album van die track aangevuld).
     In de bibliotheek kan het per album: tik op het album en kies <strong style="color:var(--text)">🔍 Aanvullen</strong>, houd het album ingedrukt voor het menu, of gebruik 🔍 achter de regel (computer).
     De app vult alleen <em>lege</em> velden uit het bewerkingsscherm: genre, jaar, origineel jaar, label, tracks, lengte, barcode,
-    type drager (alleen als dat type in Beheer bestaat), componist, producer en muzikant. Herkenningsnummer en opberglocatie vul je zelf.
+    type drager (alleen als dat type in Beheer bestaat), componist, producer en muzikant (zonder de artiest van het album zelf; fix-21). Herkenningsnummer en opberglocatie vul je zelf.
     Bronnen: MusicBrainz, daarna Discogs (vooral voor componist, producer en muzikanten) en iTunes als reserve.
     Discogs wordt alleen gevonden als MusicBrainz naar die Discogs-pagina verwijst.
     Daarna zie je per album wat er is ingevuld en waar het vandaan komt, met een knop om het ongedaan te maken.
@@ -3931,7 +3931,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-20" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-20</span>
+    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-21" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-21</span>
   </div>
 </div>`,
 
