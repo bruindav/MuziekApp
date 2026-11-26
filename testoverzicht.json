@@ -1,6 +1,29 @@
 {
   "fixes": [
     {
+      "fix": "fix-14",
+      "bestanden": [
+        {
+          "pad": "tests/e2e/firebase-stub.ts",
+          "status": "aangepast",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-14/tests/e2e/firebase-stub.ts",
+          "tests": []
+        },
+        {
+          "pad": "tests/e2e/tikken-en-footer.spec.ts",
+          "status": "nieuw",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-14/tests/e2e/tikken-en-footer.spec.ts",
+          "tests": [
+            "privacyknop onderaan de helppagina opent de privacypagina",
+            "disclaimerknop onderaan de helppagina opent de disclaimer",
+            "een verborgen melding blokkeert geen tikken onderaan het scherm",
+            "het fixnummer staat zichtbaar in de footer",
+            "lang drukken met een vinger op het fixnummer opent het testoverzicht"
+          ]
+        }
+      ]
+    },
+    {
       "fix": "fix-13",
       "bestanden": [
         {

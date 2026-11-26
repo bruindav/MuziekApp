@@ -1,4 +1,5 @@
-// Fix: fix-13 — Vervangt de Firebase-scripts in de e2e-tests door een nep-versie (niet ingelogd).
+// Fix: fix-13/fix-14 — Vervangt de Firebase-scripts in de e2e-tests door een nep-versie
+// (standaard niet ingelogd; met { ingelogd: true } een verzonnen demogebruiker zonder gegevens).
 // Zo raken de tests nooit de echte database en werken ze ook zonder internettoegang tot Firebase.
 import type { Page } from '@playwright/test';
 
@@ -18,11 +19,17 @@ export const signInWithEmailAndPassword = async () => { throw new Error('nep'); 
 export const signInWithPopup = async () => { throw new Error('nep'); };
 export const signOut = async () => {};
 export class GoogleAuthProvider {}
-// Niet ingelogd: meld direct "geen gebruiker"
-export const onAuthStateChanged = (_auth, terug) => { setTimeout(() => terug(null), 0); return () => {}; };
+// Meld direct de (nep)gebruiker, of "geen gebruiker"
+export const onAuthStateChanged = (_auth, terug) => { setTimeout(() => terug(globalThis.__nepGebruiker || null), 0); return () => {}; };
 `;
 
-export async function gebruikNepFirebase(page: Page) {
+// Verzonnen demogebruiker, geen echte persoonsgegevens
+const NEP_GEBRUIKER = { uid: 'demo-uid-0001', email: 'demo@voorbeeld.nl', displayName: 'Demo Gebruiker' };
+
+export async function gebruikNepFirebase(page: Page, opties: { ingelogd?: boolean } = {}) {
+  if (opties.ingelogd) {
+    await page.addInitScript(g => { (globalThis as any).__nepGebruiker = g; }, NEP_GEBRUIKER);
+  }
   await page.route('https://www.gstatic.com/firebasejs/**', route =>
     route.fulfill({ status: 200, contentType: 'application/javascript', body: NEP_FIREBASE }));
 }

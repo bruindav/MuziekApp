@@ -1,4 +1,4 @@
-<!-- Fix: fix-13 — eerste versie van de ontwikkelaarsdocumentatie -->
+<!-- Fix: fix-14 — footer met fixnummer, regel over onzichtbare lagen -->
 # MuziekApp — voor ontwikkelaars en AI-agents
 
 Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruindav.github.io/MuziekApp/
@@ -35,8 +35,15 @@ Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruind
 
 ## Testoverzicht in de app
 
+De footer met het fixnummer staat in de tabbalk (`.app-footer`): op mobiel als regel onder de tabs, op desktop rechts.
 Lang indrukken (ca. 1 sec, of Enter/Spatie ingedrukt houden) op het fixnummer in de footer of op de helppagina
 opent een overzicht per fix: welke testbestanden nieuw of aangepast zijn, met de testnamen en een link naar GitHub.
+
+## Let op bij vaste (fixed) elementen
+
+- Onzichtbare lagen (bijv. de melding `.toast` met `opacity:0`) moeten `pointer-events:none` hebben, anders blokkeren
+  ze tikken op wat eronder ligt. Er is een e2e-test die dit controleert.
+- Gebruik `var(--tabbar-h)` voor ruimte boven de tabbalk onderaan op mobiel, geen vaste pixels.
 
 ## Bekende beperkingen
 
