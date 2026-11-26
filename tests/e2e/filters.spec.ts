@@ -1,4 +1,4 @@
-// Fix: fix-15 — Genre- en jaarfilter met één tik terug naar "alle".
+// Fix: fix-15/fix-17 — Genre- en jaarfilter met één tik terug naar "alle"; zoeken over alle letters.
 import { test, expect, type Page } from '@playwright/test';
 import { gebruikNepFirebase } from './firebase-stub';
 
@@ -7,6 +7,7 @@ const albums = [
   { id: 'a1', artist: 'Aap en de Notenkrakers', title: 'Eerste Plaat', genre: 'Pop', genreFirst: 'Pop', year: '1999' },
   { id: 'a2', artist: 'Aap en de Notenkrakers', title: 'Tweede Plaat', genre: 'Jazz', genreFirst: 'Jazz', year: '2005' },
   { id: 'a3', artist: 'Accordeonclub Zuid', title: 'Wals', genre: 'Wereld', genreFirst: 'Wereld', year: '2005' },
+  { id: 'a4', artist: 'Walsorkest West', title: 'Avondwals', genre: 'Wereld', genreFirst: 'Wereld', year: '2010' },
 ];
 
 async function startMetAlbums(page: Page) {
@@ -53,4 +54,13 @@ test('filterbalk met wisknop past op het scherm', async ({ page }) => {
   await expect(wisKnop(page)).toBeVisible();
   const teBreed = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(teBreed).toBe(false);
+});
+
+// Fix-17: zoeken vond alleen albums onder de gekozen letter
+test('zoeken vindt ook albums onder een andere letter dan de gekozen letter', async ({ page }) => {
+  await startMetAlbums(page);
+  // Standaard staat letter A open; zoek een album waarvan de artiest met een W begint
+  await page.getByPlaceholder(/Zoek artiest/).fill('Avondwals');
+  await expect(page.getByText('Avondwals')).toBeVisible();
+  await expect(page.getByText('Eerste Plaat')).toBeHidden();
 });

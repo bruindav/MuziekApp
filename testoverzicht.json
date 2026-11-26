@@ -1,6 +1,38 @@
 {
   "fixes": [
     {
+      "fix": "fix-17",
+      "bestanden": [
+        {
+          "pad": "tests/e2e/aanvullen.spec.ts",
+          "status": "aangepast",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-17/tests/e2e/aanvullen.spec.ts",
+          "tests": [
+            "Aanvullen bij de playlist vult alleen lege velden en meldt wat er gebeurd is",
+            "🔍 bij een track vult het album van die track aan",
+            "ongedaan maken zet de aangevulde velden weer leeg",
+            "het aanvulvenster sluit met Escape en past op het scherm",
+            "🔍 Aanvullen in het albumvenster vult dat album aan",
+            "🔍 achter de albumregel vult het album aan (computer)",
+            "het menu van een album (lang drukken) bevat Gegevens aanvullen",
+            "Verwijderen in het albumvenster vraagt om bevestiging"
+          ]
+        },
+        {
+          "pad": "tests/e2e/filters.spec.ts",
+          "status": "aangepast",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-17/tests/e2e/filters.spec.ts",
+          "tests": [
+            "zonder filter is de wisknop niet zichtbaar",
+            "na kiezen van een genre zet de wisknop het filter in één tik terug op alle genres",
+            "de wisknop wist ook het jaarfilter",
+            "filterbalk met wisknop past op het scherm",
+            "zoeken vindt ook albums onder een andere letter dan de gekozen letter"
+          ]
+        }
+      ]
+    },
+    {
       "fix": "fix-16",
       "bestanden": [
         {

@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-16 | index.html | Fix: fix-16 — lege albumgegevens aanvullen via MusicBrainz en iTunes -->
+<!-- MuziekApp fix-17 | index.html | Fix: fix-17 — aanvullen per album in de bibliotheek, zoeken over alle letters, verwijderen in detailvenster -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -500,6 +500,7 @@ tbody tr:hover .row-actions { opacity:1; }
 .row-btn.edit:hover { color:var(--deezer); }
 .row-btn.del:hover  { color:var(--accent); }
 .row-btn.info:hover { color:var(--green); }
+.row-btn.zoek:hover { color:var(--text); } /* Fix-17 */
 
 /* Track uitklap */
 .track-list-wrap { background:var(--surface); border-bottom:2px solid rgba(162,89,255,.2); padding:4px 0 10px 44px; }
@@ -708,7 +709,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   <button class="tab" onclick="switchTab('beheer')">⚙️ <span class="tab-label">Beheer</span></button>
   <!-- Fix-14: footer met fixnummer, altijd zichtbaar: op mobiel onder de tabs, op desktop rechts in de tabbalk -->
   <div class="app-footer" style="display:flex;margin-left:auto;align-self:center;justify-content:center;align-items:center;gap:6px;height:16px;font-size:10px;line-height:16px;color:var(--muted)">
-    <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-16" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none;padding:0 6px">fix-16</span>
+    <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-17" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none;padding:0 6px">fix-17</span>
     <span aria-hidden="true">·</span><span>gemaakt door digidave</span>
   </div>
 </div>
@@ -760,7 +761,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
       <button id="hamburgerBtn" onclick="openSidebar()" style="display:none;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;padding:6px 10px;cursor:pointer" title="Playlists">☰</button>
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" placeholder="Zoek artiest, album, genre…" oninput="activeAlpha='';render()">
+        <input type="text" id="searchInput" placeholder="Zoek artiest, album, genre…" oninput="zoekGewijzigd()"><!-- Fix-17: zoeken in alle letters (inline-code kon activeAlpha in de module niet wijzigen) -->
       </div>
       <select class="filter-sel" id="genreFilter" onchange="render()"><option value="">Alle genres</option></select>
       <select class="filter-sel" id="yearFilter" onchange="render()" style="max-width:90px"><option value="">Alle jaren</option></select>
@@ -1010,7 +1011,9 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <div class="modal-body" id="detailBody"></div>
     <div class="modal-foot" style="flex-wrap:wrap;gap:6px">
       <button class="btn-secondary" id="detailStreamBtn" onclick="openAlbumStreamFromDetail()" style="display:none"></button>
-      <button class="btn-secondary" style="color:var(--accent);border-color:var(--accent)" id="detailDeleteBtn" onclick="closeModal('detailOverlay');confirmDeleteAlbum(editingAlbumId)">🗑 Verwijderen</button>
+      <button class="btn-secondary" style="color:var(--accent);border-color:var(--accent)" id="detailDeleteBtn" onclick="detailVerwijderen()">🗑 Verwijderen</button>
+      <!-- Fix-17: gegevens aanvullen vanuit het detailvenster (op mobiel: tik op een album) -->
+      <button class="btn-secondary" id="detailAanvulBtn" aria-label="Gegevens van dit album aanvullen" onclick="detailAanvullen()">🔍 Aanvullen</button>
       <button class="btn-primary" id="detailEditBtn" onclick="openEditFromDetail()">✏ Bewerken</button>
     </div>
   </div>
@@ -1635,7 +1638,7 @@ window.render = function() {
       ${th('deviceType','Drager')}
       ${th('length','Lengte')}
       <th>Genre</th>
-      <th style="width:70px"></th>
+      <th style="width:92px"></th>
       <th style="width:14px"></th>
     </tr></thead>
     <tbody>
@@ -1667,9 +1670,10 @@ window.render = function() {
         <td onclick="toggleSel('${a.id}')">${a.genreFirst?'<span class="genre-tag" title="'+esc(a.genre)+'">'+esc(a.genreFirst)+'</span>':''}</td>
         <td>
           <div class="row-actions">
-            <button class="row-btn info" onclick="openDetailModal('${a.id}')" title="Details">ℹ</button>
-            <button class="row-btn edit" onclick="openEditModal('${a.id}')" title="Bewerken">✏</button>
-            <button class="row-btn del"  onclick="confirmDeleteAlbum('${a.id}')" title="Verwijderen">🗑</button>
+            <button class="row-btn info" onclick="openDetailModal('${a.id}')" title="Details" aria-label="Details van ${esc(a.title)}">ℹ</button>
+            <button class="row-btn edit" onclick="openEditModal('${a.id}')" title="Bewerken" aria-label="Bewerken van ${esc(a.title)}">✏</button>
+            <button class="row-btn zoek" onclick="aanvullenAlbums(['${a.id}'])" title="Gegevens aanvullen" aria-label="Gegevens aanvullen voor ${esc(a.title)}">🔍</button>
+            <button class="row-btn del"  onclick="confirmDeleteAlbum('${a.id}')" title="Verwijderen" aria-label="Verwijderen van ${esc(a.title)}">🗑</button>
           </div>
           <button class="album-add-btn ${plIds.has(a.id)?'in-pl':''}"
             onclick="addAlbumFromMode('${a.id}')"
@@ -2151,6 +2155,8 @@ window.openCtxMenu = function(albumId, event) {
     '</div>' +
     '<div class="ctx-item" onclick="closeCtxMenu();openDetailModal(\'' + albumId + '\')"><span class="ctx-icon">ℹ</span> Details</div>' +
     '<div class="ctx-item" onclick="closeCtxMenu();openEditModal(\'' + albumId + '\')"><span class="ctx-icon">✏</span> Wijzigen</div>' +
+    // Fix-17: gegevens aanvullen
+    '<div class="ctx-item" role="button" onclick="closeCtxMenu();aanvullenAlbums([\'' + albumId + '\'])"><span class="ctx-icon">🔍</span> Gegevens aanvullen</div>' +
     '<div class="ctx-item" onclick="closeCtxMenu();openAlbumStream(\'' + albumId + '\')"><span class="ctx-icon" id="ctxStreamIcon">🎵</span> <span id="ctxStreamLabel">Afspelen</span></div>' +
     '<div class="ctx-item" onclick="closeCtxMenu();ctxAddToPlaylist(\'' + albumId + '\')"><span class="ctx-icon">' + (inPl?'✓':'+') + '</span> ' + (inPl?'Al in playlist':'Toevoegen aan playlist') + '</div>' +
     '<div class="ctx-item danger" onclick="closeCtxMenu();confirmDeleteAlbum(\'' + albumId + '\')"><span class="ctx-icon">🗑</span> Verwijderen</div>';
@@ -2920,6 +2926,19 @@ window.openAlbumStreamFromDetail = function() {
   openAlbumStream(editingAlbumId);
 };
 
+// Fix-17: knoppen in het detailvenster. Inline onclick-code kan de modulevariabele editingAlbumId
+// niet lezen (daardoor deed "Verwijderen" in het detailvenster niets), dus via deze functies.
+window.detailVerwijderen = function() {
+  const id = editingAlbumId;
+  closeModal('detailOverlay');
+  confirmDeleteAlbum(id);
+};
+window.detailAanvullen = function() {
+  const id = editingAlbumId;
+  closeModal('detailOverlay');
+  aanvullenAlbums([id]);
+};
+
 window.openDetailModal = async function(id) {
   editingAlbumId = id;
   const a = albums.find(x=>x.id===id);
@@ -3585,6 +3604,12 @@ function dl(content,name,type) { const a=document.createElement('a'); a.href=URL
 
 
 // ── FILTERS & STATS ───────────────────────────────────────────────
+// Fix-17: zoeken doorzoekt alle albums, niet alleen de gekozen letter
+window.zoekGewijzigd = function() {
+  activeAlpha = '';
+  render();
+};
+
 // Fix-15: genre- en jaarfilter terug naar "alle"
 window.wisFilters = function() {
   document.getElementById('genreFilter').value = '';
@@ -3802,6 +3827,7 @@ help: `
     <div style="font-weight:600;color:var(--text);margin-bottom:6px">🔍 Gegevens aanvullen</div>
     Mist een album genre, jaar, label, aantal tracks of lengte? Tik in een playlist op <strong style="color:var(--text)">🔍 Aanvullen</strong>
     voor alle albums in die playlist, of op 🔍 bij één album of track (dan wordt het album van die track aangevuld).
+    In de bibliotheek kan het per album: tik op het album en kies <strong style="color:var(--text)">🔍 Aanvullen</strong>, houd het album ingedrukt voor het menu, of gebruik 🔍 achter de regel (computer).
     De app zoekt eerst bij MusicBrainz (gedetailleerd genre) en daarna bij iTunes, en vult alleen <em>lege</em> velden in.
     Daarna zie je per album wat er is ingevuld en waar het vandaan komt, met een knop om het ongedaan te maken.
   </div>
@@ -3834,7 +3860,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-16" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-16</span>
+    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-17" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-17</span>
   </div>
 </div>`,
 

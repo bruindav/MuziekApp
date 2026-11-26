@@ -83,3 +83,55 @@ test('het aanvulvenster sluit met Escape en past op het scherm', async ({ page }
   await page.keyboard.press('Escape');
   await expect(dialoog(page)).toHaveCount(0);
 });
+
+// Fix-17: aanvullen vanuit de bibliotheek
+test.describe('aanvullen in de bibliotheek', () => {
+  async function openBibliotheek(page: Page) {
+    await page.addInitScript(() => { (globalThis as any).__mbPauzeMs = 0; });
+    await gebruikNepFirebase(page, { ingelogd: true, data: { albums, trackItems, playlists } });
+    await nepMuziekdiensten(page);
+    await page.goto('/');
+    const welkom = page.getByRole('button', { name: /Veel plezier/ });
+    if (await welkom.isVisible({ timeout: 3000 }).catch(() => false)) await welkom.click();
+    // Wacht tot de albums geladen zijn (standaard staat letter A open), zoek dan het album op naam
+    await expect(page.getByText('Aap en de Notenkrakers').first()).toBeVisible();
+    await page.getByPlaceholder(/Zoek artiest/).fill('Eerste');
+    await expect(page.getByText('Eerste Plaat')).toBeVisible();
+  }
+
+  test('🔍 Aanvullen in het albumvenster vult dat album aan', async ({ page }, info) => {
+    await openBibliotheek(page);
+    if (info.project.name === 'mobiel') {
+      // Op mobiel: tik op het album, dan opent het detailvenster
+      await page.getByText('Eerste Plaat').click();
+    } else {
+      await page.getByRole('button', { name: 'Details van Eerste Plaat' }).click();
+    }
+    await page.getByRole('button', { name: 'Gegevens van dit album aanvullen' }).click();
+    await expect(dialoog(page).getByRole('status')).toHaveText('Klaar: 1 aangevuld.');
+  });
+
+  test('🔍 achter de albumregel vult het album aan (computer)', async ({ page }, info) => {
+    test.skip(info.project.name === 'mobiel', 'Knoppen achter de regel zijn er alleen op de computer');
+    await openBibliotheek(page);
+    await page.getByRole('button', { name: 'Gegevens aanvullen voor Eerste Plaat' }).click();
+    await expect(dialoog(page).getByRole('status')).toHaveText('Klaar: 1 aangevuld.');
+  });
+
+  test('het menu van een album (lang drukken) bevat Gegevens aanvullen', async ({ page }, info) => {
+    test.skip(info.project.name !== 'mobiel', 'Dit menu is er alleen op mobiel');
+    await openBibliotheek(page);
+    // Open het albummenu zoals lang drukken dat doet (het gebaar zelf is bestaand gedrag)
+    await page.evaluate(() => (window as any).openCtxMenu('a1', new Event('touchstart')));
+    await page.getByRole('button', { name: /Gegevens aanvullen/ }).click();
+    await expect(dialoog(page).getByRole('status')).toHaveText('Klaar: 1 aangevuld.');
+  });
+
+  test('Verwijderen in het albumvenster vraagt om bevestiging', async ({ page }) => {
+    await openBibliotheek(page);
+    await page.evaluate(() => (window as any).openDetailModal('a1'));
+    await page.getByRole('button', { name: '🗑 Verwijderen' }).click();
+    // De bevestigingsvraag verschijnt (eerder deed deze knop niets)
+    await expect(page.getByRole('heading', { name: 'Verwijderen?' })).toBeVisible();
+  });
+});

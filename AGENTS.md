@@ -1,4 +1,4 @@
-<!-- Fix: fix-16 — aanvullen van albumgegevens -->
+<!-- Fix: fix-17 — valkuil inline onclick en modulevariabelen -->
 # MuziekApp — voor ontwikkelaars en AI-agents
 
 Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruindav.github.io/MuziekApp/
@@ -41,6 +41,12 @@ Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruind
 De footer met het fixnummer staat in de tabbalk (`.app-footer`): op mobiel als regel onder de tabs, op desktop rechts.
 Lang indrukken (ca. 1 sec, of Enter/Spatie ingedrukt houden) op het fixnummer in de footer of op de helppagina
 opent een overzicht per fix: welke testbestanden nieuw of aangepast zijn, met de testnamen en een link naar GitHub.
+
+## Let op: inline `onclick` en modulevariabelen
+
+De app-code staat in een `<script type="module">`. Variabelen daarin (`let activeAlpha`, `let editingAlbumId`, …) zijn
+**niet** bereikbaar vanuit inline `onclick="…"`/`oninput="…"`: lezen geeft een fout, schrijven maakt stilletjes een
+nieuwe globale variabele. Roep vanuit HTML altijd een `window.…`-functie aan die de modulevariabele gebruikt.
 
 ## Let op bij vaste (fixed) elementen
 
