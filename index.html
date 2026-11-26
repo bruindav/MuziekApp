@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-17 | index.html | Fix: fix-17 — aanvullen per album in de bibliotheek, zoeken over alle letters, verwijderen in detailvenster -->
+<!-- MuziekApp fix-18 | index.html | Fix: fix-18 — aanvullen van alle velden uit het bewerkingsscherm, ook via Discogs -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -709,7 +709,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   <button class="tab" onclick="switchTab('beheer')">⚙️ <span class="tab-label">Beheer</span></button>
   <!-- Fix-14: footer met fixnummer, altijd zichtbaar: op mobiel onder de tabs, op desktop rechts in de tabbalk -->
   <div class="app-footer" style="display:flex;margin-left:auto;align-self:center;justify-content:center;align-items:center;gap:6px;height:16px;font-size:10px;line-height:16px;color:var(--muted)">
-    <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-17" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none;padding:0 6px">fix-17</span>
+    <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-18" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none;padding:0 6px">fix-18</span>
     <span aria-hidden="true">·</span><span>gemaakt door digidave</span>
   </div>
 </div>
@@ -1853,34 +1853,48 @@ window.removeFromPlaylist = async function(aid) {
   await updateDoc(userDoc('playlists',activePlaylistId), { ids: (pl.ids||[]).filter(id=>id!==aid) });
 };
 
-// ── Fix-16: ONTBREKENDE GEGEVENS AANVULLEN ──────────────────────────
-// Vult alleen LEGE velden (genre, jaar, label, tracks, lengte) van albums aan.
-// Bron: eerst MusicBrainz (gedetailleerd genre), daarna iTunes voor wat nog ontbreekt.
-// Discogs kan niet: zoeken vraagt daar een persoonlijke sleutel, en geheimen horen niet in de app.
-const VELD_NAAM = { genre:'Genre', year:'Jaar', label:'Label', tracks:'Tracks', length:'Lengte' };
-let mbLaatste = 0;
-async function mbBeleefd(url) {
-  // MusicBrainz staat max. 1 verzoek per seconde toe
-  const pauze = globalThis.__mbPauzeMs ?? 1100;
-  const wacht = mbLaatste + pauze - Date.now();
+// ── Fix-16/fix-18: ONTBREKENDE GEGEVENS AANVULLEN ───────────────────
+// Vult alleen LEGE velden uit het bewerkingsscherm aan (genre, jaar, origineel jaar, label, tracks, lengte,
+// barcode, drager, componist, producer, muzikant). Herkenningsnummer en opberglocatie zijn van jezelf.
+// Bronnen: MusicBrainz (zoeken en basis), Discogs (credits; via de Discogs-link in MusicBrainz, want zoeken
+// in Discogs vraagt een persoonlijke sleutel), iTunes (reserve voor genre, jaar, tracks en lengte).
+const VELD_NAAM = { genre:'Genre', year:'Jaar', origYear:'Origineel jaar', label:'Label', tracks:'Tracks', length:'Lengte',
+  barcode:'Barcode', deviceType:'Type drager', composer:'Componist', producer:'Producer', musician:'Muzikant' };
+
+// Beleefd wachten tussen verzoeken: MusicBrainz max. 1 per seconde, Discogs zonder sleutel max. 25 per minuut
+const laatsteVerzoek = {};
+async function beleefdWachten(dienst, standaardMs) {
+  const pauze = globalThis['__' + dienst + 'PauzeMs'] ?? standaardMs;
+  const wacht = (laatsteVerzoek[dienst] || 0) + pauze - Date.now();
   if (wacht > 0) await new Promise(r => setTimeout(r, wacht));
-  mbLaatste = Date.now();
+  laatsteVerzoek[dienst] = Date.now();
+}
+async function mbBeleefd(url) {
+  await beleefdWachten('mb', 1100);
   return mbFetch(url);
 }
 
+// Uitkomst: { gegevens, discogsId }
 async function zoekBijMusicBrainz(a) {
   const AV = window.MuziekAanvullen;
   const schoon = s => String(s||'').replace(/["\\]/g,' ').trim();
   const q = encodeURIComponent('artist:"' + schoon(a.artist) + '" AND release:"' + schoon(AV.zoekTitel(a.title)) + '"');
   const zoek = await mbBeleefd('release?query=' + q + '&limit=10');
   const rel = AV.kiesMbRelease(zoek, a);
-  if (!rel) return {};
-  const detail = await mbBeleefd('release/' + rel.id + '?inc=genres+labels+recordings+release-groups');
+  if (!rel) return { gegevens: {}, discogsId: null };
+  const detail = await mbBeleefd('release/' + rel.id + '?inc=genres+labels+recordings+release-groups+url-rels+artist-rels');
   let groepGenres = [];
   if (!(detail.genres||[]).length && detail['release-group']?.id) {
     try { groepGenres = (await mbBeleefd('release-group/' + detail['release-group'].id + '?inc=genres')).genres || []; } catch(e) {}
   }
-  return AV.uitMusicBrainz(detail, groepGenres);
+  return { gegevens: AV.uitMusicBrainz(detail, groepGenres, deviceTypes), discogsId: AV.discogsIdUitMb(detail) };
+}
+
+async function zoekBijDiscogs(releaseId) {
+  await beleefdWachten('dc', 2500);
+  const res = await fetch('https://api.discogs.com/releases/' + encodeURIComponent(releaseId));
+  if (!res.ok) throw new Error('Discogs HTTP ' + res.status);
+  return window.MuziekAanvullen.uitDiscogs(await res.json(), deviceTypes);
 }
 
 async function zoekBijItunes(a, ookLengte) {
@@ -1900,19 +1914,28 @@ async function zoekBijItunes(a, ookLengte) {
   return AV.uitItunes(it, nummers);
 }
 
+const ITUNES_VELDEN = ['genre', 'year', 'tracks', 'length'];
+
 // Zoek en vul één album aan. Uitkomst: { status: 'aangevuld'|'compleet'|'niet-gevonden'|'fout', aanvulling, fout }
 async function vulAlbumAan(a) {
   const AV = window.MuziekAanvullen;
   if (!AV.legeVelden(a).length) return { status: 'compleet' };
-  let mb = {}, it = {}, fouten = [];
-  try { mb = await zoekBijMusicBrainz(a); } catch(e) { fouten.push('MusicBrainz: ' + e.message); }
-  const nogLeeg = AV.legeVelden({ ...a, ...Object.fromEntries(Object.entries(mb).filter(([,v]) => !AV.isLeeg(v))) });
-  if (nogLeeg.length) {
-    try { it = await zoekBijItunes(a, nogLeeg.includes('length')); } catch(e) { fouten.push(e.message); }
+  const bronnen = {}, fouten = [];
+  let discogsId = null;
+  try {
+    const mb = await zoekBijMusicBrainz(a);
+    bronnen.MusicBrainz = mb.gegevens; discogsId = mb.discogsId;
+  } catch(e) { fouten.push('MusicBrainz: ' + e.message); }
+  if (discogsId && AV.nogLeeg(a, bronnen).length) {
+    try { bronnen.Discogs = await zoekBijDiscogs(discogsId); } catch(e) { fouten.push(e.message); }
   }
-  const aanvulling = AV.bepaalAanvulling(a, mb, it);
+  const leeg = AV.nogLeeg(a, bronnen).filter(v => ITUNES_VELDEN.includes(v));
+  if (leeg.length) {
+    try { bronnen.iTunes = await zoekBijItunes(a, leeg.includes('length')); } catch(e) { fouten.push(e.message); }
+  }
+  const aanvulling = AV.bepaalAanvulling(a, bronnen);
   if (!Object.keys(aanvulling).length) {
-    return fouten.length === 2 ? { status: 'fout', fout: fouten.join('; ') } : { status: 'niet-gevonden' };
+    return fouten.length && !Object.keys(bronnen).length ? { status: 'fout', fout: fouten.join('; ') } : { status: 'niet-gevonden' };
   }
   await updateDoc(userDoc('albums', a.id), AV.naarUpdate(aanvulling));
   return { status: 'aangevuld', aanvulling };
@@ -1963,7 +1986,7 @@ function toonAanvulResultaten(inhoud, resultaten) {
       } else if (r.status === 'compleet') {
         regel = '<div style="color:var(--green)">✓ Al compleet, niets gewijzigd.</div>';
       } else if (r.status === 'niet-gevonden') {
-        regel = '<div style="color:var(--muted)">Niet gevonden bij MusicBrainz of iTunes. Controleer de schrijfwijze van artiest en titel.</div>';
+        regel = '<div style="color:var(--muted)">Niets gevonden om aan te vullen bij MusicBrainz, Discogs of iTunes. Controleer de schrijfwijze van artiest en titel.</div>';
       } else {
         regel = '<div style="color:var(--accent)">⚠ Zoeken mislukt: ' + esc(r.fout || 'onbekende fout') + '</div>';
       }
@@ -3828,7 +3851,10 @@ help: `
     Mist een album genre, jaar, label, aantal tracks of lengte? Tik in een playlist op <strong style="color:var(--text)">🔍 Aanvullen</strong>
     voor alle albums in die playlist, of op 🔍 bij één album of track (dan wordt het album van die track aangevuld).
     In de bibliotheek kan het per album: tik op het album en kies <strong style="color:var(--text)">🔍 Aanvullen</strong>, houd het album ingedrukt voor het menu, of gebruik 🔍 achter de regel (computer).
-    De app zoekt eerst bij MusicBrainz (gedetailleerd genre) en daarna bij iTunes, en vult alleen <em>lege</em> velden in.
+    De app vult alleen <em>lege</em> velden uit het bewerkingsscherm: genre, jaar, origineel jaar, label, tracks, lengte, barcode,
+    type drager (alleen als dat type in Beheer bestaat), componist, producer en muzikant. Herkenningsnummer en opberglocatie vul je zelf.
+    Bronnen: MusicBrainz, daarna Discogs (vooral voor componist, producer en muzikanten) en iTunes als reserve.
+    Discogs wordt alleen gevonden als MusicBrainz naar die Discogs-pagina verwijst.
     Daarna zie je per album wat er is ingevuld en waar het vandaan komt, met een knop om het ongedaan te maken.
   </div>
 
@@ -3860,7 +3886,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-17" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-17</span>
+    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-18" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-18</span>
   </div>
 </div>`,
 

@@ -1,4 +1,4 @@
-<!-- Fix: fix-17 — valkuil inline onclick en modulevariabelen -->
+<!-- Fix: fix-18 — aanvullen met Discogs via MusicBrainz-link -->
 # MuziekApp — voor ontwikkelaars en AI-agents
 
 Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruindav.github.io/MuziekApp/
@@ -7,8 +7,10 @@ Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruind
 
 - `index.html` — de hele app (HTML, CSS en JavaScript in één bestand). Geen build-stap.
 - `js/export.js` — pure export-functies (CSV), los gehouden zodat ze te testen zijn.
-- `js/aanvullen.js` — pure functies om lege albumvelden aan te vullen uit MusicBrainz en iTunes (matching, keuze van
-  de bron, Firestore-update en ongedaan maken). Het ophalen zelf (fetch, max. 1 MusicBrainz-verzoek per seconde) zit in `index.html`.
+- `js/aanvullen.js` — pure functies om lege albumvelden (alle velden uit het bewerkingsscherm behalve artiest, titel,
+  herkenningsnummer en opberglocatie) aan te vullen uit MusicBrainz, Discogs en iTunes: matching, keuze van de bron per veld,
+  drager koppelen aan de typen uit Beheer, Firestore-update en ongedaan maken. Het ophalen zelf zit in `index.html`
+  (MusicBrainz max. 1 verzoek/sec, Discogs zonder sleutel max. 25/min).
 - Firebase Auth + Firestore (geladen van de Firebase-CDN). Toegang wordt afgedwongen in de Firestore-regels.
 - Kleuren via themavariabelen in `:root` (`--bg`, `--surface`, `--text`, `--muted`, `--accent`, …). Geen losse kleuren.
 
@@ -30,7 +32,7 @@ Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruind
 - `npm run test:e2e` — Playwright (`tests/e2e/*.spec.ts`), op desktop en op mobiel formaat (412 px breed).
   Firebase wordt in de e2e-tests vervangen door een nep-versie (`tests/e2e/firebase-stub.ts`), dus de tests raken
   nooit echte gegevens. Met `gebruikNepFirebase(page, { ingelogd: true, data: {...} })` geef je verzonnen testdata mee;
-  `schrijfacties(page)` laat zien wat de app zou wegschrijven. Externe diensten (MusicBrainz, iTunes) boots je na met `page.route`. Geen Playwright-browser te downloaden? `PW_CHROME=/pad/naar/chrome npm run test:e2e`.
+  `schrijfacties(page)` laat zien wat de app zou wegschrijven. Externe diensten (MusicBrainz, Discogs, iTunes) boots je na met `page.route`. Geen Playwright-browser te downloaden? `PW_CHROME=/pad/naar/chrome npm run test:e2e`.
 - `npm run controleer` — faalt als het fixnummer in de app niet bij de laatste `fix-N:`-commit past of als
   `testoverzicht.json` verouderd is.
 - Schrijf Playwright-tests leesbaar: Nederlandse testnamen, selecteren op rol en label (`getByRole`, `getByLabel`),
@@ -56,7 +58,8 @@ nieuwe globale variabele. Roep vanuit HTML altijd een `window.…`-functie aan d
 
 ## Bekende beperkingen
 
-- Discogs wordt niet gebruikt voor aanvullen: zoeken in Discogs vraagt een persoonlijke sleutel, en die mag niet in de app.
+- Zoeken in Discogs vraagt een persoonlijke sleutel, en die mag niet in de app. Discogs wordt daarom alleen gebruikt als
+  MusicBrainz naar een Discogs-release linkt; een release ophalen op id kan zonder sleutel.
 
 - Playlist rechtstreeks naar Deezer of Spotify kan niet: Deezer accepteert geen nieuwe apps en de Spotify Web API
   vereist Premium voor de eigenaar van de app. Alternatief: `↓ CSV` en importeren via Tune My Music.

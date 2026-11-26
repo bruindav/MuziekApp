@@ -1,6 +1,50 @@
 {
   "fixes": [
     {
+      "fix": "fix-18",
+      "bestanden": [
+        {
+          "pad": "tests/e2e/aanvullen.spec.ts",
+          "status": "aangepast",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-18/tests/e2e/aanvullen.spec.ts",
+          "tests": [
+            "Aanvullen bij de playlist vult alleen lege velden en meldt wat er gebeurd is",
+            "🔍 bij een track vult het album van die track aan",
+            "ongedaan maken zet de aangevulde velden weer leeg",
+            "het aanvulvenster sluit met Escape en past op het scherm",
+            "🔍 Aanvullen in het albumvenster vult dat album aan",
+            "🔍 achter de albumregel vult het album aan (computer)",
+            "het menu van een album (lang drukken) bevat Gegevens aanvullen",
+            "Verwijderen in het albumvenster vraagt om bevestiging"
+          ]
+        },
+        {
+          "pad": "tests/unit/aanvullen.test.mjs",
+          "status": "aangepast",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-18/tests/unit/aanvullen.test.mjs",
+          "tests": [
+            "lege velden herkennen, ook \"0\" en \"—\"",
+            "kiest de MusicBrainz-release waarvan artiest en titel kloppen, ook met \"(Disc 1)\"",
+            "geen MusicBrainz-release als de artiest niet klopt",
+            "haalt genre met meeste stemmen, jaar, label, tracks en lengte uit MusicBrainz",
+            "valt terug op het genre van de release-groep als de release geen genre heeft",
+            "vult alleen lege velden en neemt MusicBrainz vóór iTunes",
+            "gebruikt iTunes als MusicBrainz niets heeft",
+            "update zet ook genreFirst; ongedaan maken maakt de velden weer leeg",
+            "lengte als m:ss en u:mm:ss",
+            "album-id’s van een playlist: albums plus het album van elke track, zonder dubbelen",
+            "geen lengte als niet alle nummers van een medium bekend zijn",
+            "Discogs: credits, barcode, label en drager worden goed gelezen",
+            "drager alleen als dat type in Beheer bestaat",
+            "Discogs-id uit de links van een MusicBrainz-release",
+            "MusicBrainz: origineel jaar, barcode en drager",
+            "credits eerst uit Discogs, overige velden eerst uit MusicBrainz",
+            "nogLeeg telt al gevonden gegevens mee"
+          ]
+        }
+      ]
+    },
+    {
       "fix": "fix-17",
       "bestanden": [
         {
