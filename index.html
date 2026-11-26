@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-19 | index.html | Fix: fix-19 — MusicBrainz-verzoeken via één wachtrij, 503 opnieuw proberen -->
+<!-- MuziekApp fix-20 | index.html | Fix: fix-20 — logboek MusicBrainz-verzoeken bij fouten, ruimere wachttijd -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -709,7 +709,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
   <button class="tab" onclick="switchTab('beheer')">⚙️ <span class="tab-label">Beheer</span></button>
   <!-- Fix-14: footer met fixnummer, altijd zichtbaar: op mobiel onder de tabs, op desktop rechts in de tabbalk -->
   <div class="app-footer" style="display:flex;margin-left:auto;align-self:center;justify-content:center;align-items:center;gap:6px;height:16px;font-size:10px;line-height:16px;color:var(--muted)">
-    <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-19" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none;padding:0 6px">fix-19</span>
+    <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-20" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none;padding:0 6px">fix-20</span>
     <span aria-hidden="true">·</span><span>gemaakt door digidave</span>
   </div>
 </div>
@@ -1977,7 +1977,10 @@ function toonAanvulResultaten(inhoud, resultaten) {
   // Fix-19: mislukte albums (bijv. MusicBrainz even te druk) in één tik opnieuw proberen
   const mislukt = resultaten.filter(r => r.status === 'fout').map(r => r.album.id);
   inhoud.innerHTML = '<p role="status" style="margin:0 0 10px;color:var(--text)">Klaar: ' + esc(samenvatting) + '.</p>' +
-    (mislukt.length ? '<button type="button" class="pbtn pbtn-json" data-opnieuw style="margin-bottom:10px">↻ Mislukte opnieuw proberen</button>' : '') +
+    (mislukt.length ? '<button type="button" class="pbtn pbtn-json" data-opnieuw style="margin-bottom:10px">↻ Mislukte opnieuw proberen</button>' +
+      // Fix-20: technische details om de oorzaak van fouten te vinden
+      '<details style="margin-bottom:10px"><summary style="cursor:pointer">Technische details (laatste MusicBrainz-verzoeken)</summary>' +
+      '<pre style="white-space:pre-wrap;font-size:11px;margin:6px 0 0;color:var(--muted)">' + esc(mbLog.join('\n') || '(geen verzoeken)') + '</pre></details>' : '') +
     resultaten.map((r, i) => {
       const kop = '<div style="font-weight:600;color:var(--text)">' + esc(r.album.artist) + ' – ' + esc(r.album.title) + '</div>';
       let regel;
@@ -2573,6 +2576,15 @@ const MB_FORMAT_MAP = {
 // - Bij 503/429 tot 3 keer opnieuw proberen, met steeds langer wachten (2, 4, 8 sec of wat MusicBrainz vraagt).
 let mbWachtrij = Promise.resolve();
 let mbLaatste = 0;
+// Fix-20: logboek van de laatste MusicBrainz-verzoeken (tijd, wat, uitkomst), zichtbaar bij een mislukte aanvulling
+const mbLog = [];
+function mbLogRegel(url, uitkomst) {
+  const t = new Date();
+  const tijd = t.toTimeString().slice(0, 8) + '.' + String(t.getMilliseconds()).padStart(3, '0');
+  mbLog.push(tijd + '  ' + uitkomst + '  ' + url.split('?')[0] + (url.includes('query=') ? ' (zoeken)' : ''));
+  if (mbLog.length > 40) mbLog.shift();
+}
+window.mbLogboek = () => mbLog.slice();
 const slaap = ms => new Promise(r => setTimeout(r, ms));
 function mbFetch(url) {
   const taak = mbWachtrij.then(() => mbFetchNu(url));
@@ -2580,12 +2592,20 @@ function mbFetch(url) {
   return taak;
 }
 async function mbFetchNu(url) {
-  const pauze = globalThis.__mbPauzeMs ?? 1100;
+  // Fix-20: iets ruimer dan 1 per seconde, zodat kleine tijdsverschillen geen 503 geven
+  const pauze = globalThis.__mbPauzeMs ?? 1300;
   for (let poging = 0; ; poging++) {
     const wacht = mbLaatste + pauze - Date.now();
     if (wacht > 0) await slaap(wacht);
     mbLaatste = Date.now();
-    const res = await fetch('https://musicbrainz.org/ws/2/' + url + (url.includes('?')?'&':'?') + 'fmt=json');
+    let res;
+    try {
+      res = await fetch('https://musicbrainz.org/ws/2/' + url + (url.includes('?')?'&':'?') + 'fmt=json');
+    } catch(e) {
+      mbLogRegel(url, 'netwerkfout');
+      throw e;
+    }
+    mbLogRegel(url, 'HTTP ' + res.status + (poging ? ' (poging ' + (poging + 1) + ')' : ''));
     if ((res.status === 503 || res.status === 429) && poging < 3) {
       const gevraagd = Number(res.headers.get('Retry-After'));
       const extra = gevraagd > 0 ? gevraagd * 1000 : 2000 * 2 ** poging;
@@ -3911,7 +3931,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-19" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-19</span>
+    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-20" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-20</span>
   </div>
 </div>`,
 

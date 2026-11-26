@@ -1,4 +1,4 @@
-// Fix: fix-19 — MusicBrainz gaf regelmatig HTTP 503 (te veel verzoeken tegelijk). Alle verzoeken gaan nu
+// Fix: fix-19/fix-20 — MusicBrainz gaf regelmatig HTTP 503 (te veel verzoeken tegelijk). Alle verzoeken gaan nu
 // via één wachtrij, zonder extra header, en een 503 wordt opnieuw geprobeerd.
 import { test, expect, type Page } from '@playwright/test';
 import { gebruikNepFirebase } from './firebase-stub';
@@ -43,6 +43,9 @@ test('blijft MusicBrainz druk, dan kun je de mislukte albums opnieuw proberen', 
   await start(page, 0);
   await page.evaluate(() => (window as any).aanvullenAlbums(['a1']));
   await expect(dialoog(page).getByRole('status')).toHaveText('Klaar: 1 mislukt.');
+  // Fix-20: technische details tonen de MusicBrainz-verzoeken met hun uitkomst
+  await dialoog(page).getByText('Technische details (laatste MusicBrainz-verzoeken)').click();
+  await expect(dialoog(page).getByText(/HTTP 503 \(poging 4\)/)).toBeVisible();
   // MusicBrainz is weer beschikbaar: opnieuw proberen
   druk = false;
   await dialoog(page).getByRole('button', { name: '↻ Mislukte opnieuw proberen' }).click();
