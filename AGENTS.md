@@ -1,4 +1,4 @@
-<!-- Fix: fix-14 — footer met fixnummer, regel over onzichtbare lagen -->
+<!-- Fix: fix-16 — aanvullen van albumgegevens -->
 # MuziekApp — voor ontwikkelaars en AI-agents
 
 Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruindav.github.io/MuziekApp/
@@ -7,6 +7,8 @@ Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruind
 
 - `index.html` — de hele app (HTML, CSS en JavaScript in één bestand). Geen build-stap.
 - `js/export.js` — pure export-functies (CSV), los gehouden zodat ze te testen zijn.
+- `js/aanvullen.js` — pure functies om lege albumvelden aan te vullen uit MusicBrainz en iTunes (matching, keuze van
+  de bron, Firestore-update en ongedaan maken). Het ophalen zelf (fetch, max. 1 MusicBrainz-verzoek per seconde) zit in `index.html`.
 - Firebase Auth + Firestore (geladen van de Firebase-CDN). Toegang wordt afgedwongen in de Firestore-regels.
 - Kleuren via themavariabelen in `:root` (`--bg`, `--surface`, `--text`, `--muted`, `--accent`, …). Geen losse kleuren.
 
@@ -27,7 +29,8 @@ Persoonlijke muziekbibliotheek (albums, tracks, playlists). Live: https://bruind
 - `npm run test:unit` — unit-tests met de ingebouwde Node-testrunner (`tests/unit/*.test.mjs`).
 - `npm run test:e2e` — Playwright (`tests/e2e/*.spec.ts`), op desktop en op mobiel formaat (412 px breed).
   Firebase wordt in de e2e-tests vervangen door een nep-versie (`tests/e2e/firebase-stub.ts`), dus de tests raken
-  nooit echte gegevens. Geen Playwright-browser te downloaden? `PW_CHROME=/pad/naar/chrome npm run test:e2e`.
+  nooit echte gegevens. Met `gebruikNepFirebase(page, { ingelogd: true, data: {...} })` geef je verzonnen testdata mee;
+  `schrijfacties(page)` laat zien wat de app zou wegschrijven. Externe diensten (MusicBrainz, iTunes) boots je na met `page.route`. Geen Playwright-browser te downloaden? `PW_CHROME=/pad/naar/chrome npm run test:e2e`.
 - `npm run controleer` — faalt als het fixnummer in de app niet bij de laatste `fix-N:`-commit past of als
   `testoverzicht.json` verouderd is.
 - Schrijf Playwright-tests leesbaar: Nederlandse testnamen, selecteren op rol en label (`getByRole`, `getByLabel`),
@@ -46,6 +49,8 @@ opent een overzicht per fix: welke testbestanden nieuw of aangepast zijn, met de
 - Gebruik `var(--tabbar-h)` voor ruimte boven de tabbalk onderaan op mobiel, geen vaste pixels.
 
 ## Bekende beperkingen
+
+- Discogs wordt niet gebruikt voor aanvullen: zoeken in Discogs vraagt een persoonlijke sleutel, en die mag niet in de app.
 
 - Playlist rechtstreeks naar Deezer of Spotify kan niet: Deezer accepteert geen nieuwe apps en de Spotify Web API
   vereist Premium voor de eigenaar van de app. Alternatief: `↓ CSV` en importeren via Tune My Music.
