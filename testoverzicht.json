@@ -1,0 +1,95 @@
+{
+  "fixes": [
+    {
+      "fix": "fix-13",
+      "bestanden": [
+        {
+          "pad": "tests/e2e/firebase-stub.ts",
+          "status": "nieuw",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-13/tests/e2e/firebase-stub.ts",
+          "tests": []
+        },
+        {
+          "pad": "tests/e2e/publiek.spec.ts",
+          "status": "nieuw",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-13/tests/e2e/publiek.spec.ts",
+          "tests": [
+            "helppagina is zonder inloggen te openen en toont het fixnummer",
+            "lang indrukken op het fixnummer opent het testoverzicht",
+            "kort klikken op het fixnummer opent het testoverzicht niet",
+            "testoverzicht werkt met het toetsenbord en sluit met Escape",
+            "helppagina legt uit hoe een playlist via Tune My Music naar Deezer gaat",
+            "helppagina en testoverzicht zijn niet breder dan het scherm"
+          ]
+        },
+        {
+          "pad": "tests/unit/export.test.mjs",
+          "status": "nieuw",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-13/tests/unit/export.test.mjs",
+          "tests": [
+            "CSV begint met de kolomkoppen die Tune My Music herkent",
+            "een track krijgt titel, artiest, album en playlistnaam",
+            "een album krijgt een lege tracktitel",
+            "onbekende items worden overgeslagen",
+            "regeleinden in een veld worden een spatie",
+            "bestandsnaam zonder verboden tekens"
+          ]
+        },
+        {
+          "pad": "tests/unit/testnamen.test.mjs",
+          "status": "nieuw",
+          "url": "https://github.com/bruindav/MuziekApp/blob/fix-13/tests/unit/testnamen.test.mjs",
+          "tests": [
+            "vindt namen van test() en it(), ook met .skip",
+            "negeert test.describe-groepen en houdt aanhalingstekens in de naam",
+            "leest het fixnummer uit een commitbericht"
+          ]
+        }
+      ]
+    },
+    {
+      "fix": "fix-12",
+      "bestanden": []
+    },
+    {
+      "fix": "fix-11",
+      "bestanden": []
+    },
+    {
+      "fix": "fix-10",
+      "bestanden": []
+    },
+    {
+      "fix": "fix-9",
+      "bestanden": []
+    },
+    {
+      "fix": "fix-8",
+      "bestanden": []
+    },
+    {
+      "fix": "fix-7",
+      "bestanden": []
+    },
+    {
+      "fix": "fix-6",
+      "bestanden": []
+    },
+    {
+      "fix": "fix-5",
+      "bestanden": []
+    },
+    {
+      "fix": "fix-4",
+      "bestanden": []
+    },
+    {
+      "fix": "fix-3",
+      "bestanden": []
+    },
+    {
+      "fix": "fix-1",
+      "bestanden": []
+    }
+  ]
+}

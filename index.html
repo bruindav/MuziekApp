@@ -1,4 +1,4 @@
-<!-- MuziekApp fix-12 | index.html | Fix: fix-12 — Spotify export verwijderd (vereist Premium) -->
+<!-- MuziekApp fix-13 | index.html | Fix: fix-13 — CSV voor Tune My Music, testoverzicht per fix, fixnummer via scripts/versie.mjs -->
 <!-- Vorige versie: V70 - Help direct te openen met #help achter het adres; terugknop sluit de infopagina -->
 <!DOCTYPE html>
 <html lang="nl">
@@ -729,7 +729,7 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
     <!-- Fix-4: householdId zichtbaar voor diagnose -->
     <div id="householdDebug" style="font-size:9px;color:var(--muted);margin-top:2px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Household ID (debug)"></div>
     <div style="font-size:10px;color:var(--muted);margin-top:4px;text-align:center">
-      <span id="fixnummerLabel" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none">fix-12</span>
+      <span id="fixnummerLabel" data-fixnummer tabindex="0" role="button" aria-label="Versienummer fix-13" title="Versienummer — lang indrukken voor testoverzicht" style="cursor:default;user-select:none;-webkit-touch-callout:none">fix-13</span>
     </div>
   </div>
 </aside>
@@ -1118,6 +1118,8 @@ tbody tr.drag-over td { border-top:2px solid var(--accent) !important; }
 
 <div class="toast" id="toast"></div>
 
+<!-- Fix: fix-13 — export-functies in los bestand (testbaar) -->
+<script src="js/export.js"></script>
 <script type="module">
 // ── FIREBASE ──────────────────────────────────────────────────────
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -3384,13 +3386,10 @@ window.exportJSON = function() {
 window.exportPlaylistCSV = function() {
   const pl = playlists.find(p=>p.id===activePlaylistId);
   if (!pl) return;
-  const rows=[['Type','Artiest','Album/Track','Jaar','Genre']];
-  (pl.ids||[]).forEach(id=>{
-    if (id.includes('_t')) { const t=trackItems[id]; if(t) rows.push(['Track',t.artist,t.title,'',t.album||'']); }
-    else { const a=albums.find(x=>x.id===id); if(a) rows.push(['Album',a.artist,a.title,a.year,a.genre]); }
-  });
-  dl(rows.map(r=>r.map(v=>'"'+(v||'').replace(/"/g,'""')+'"').join(',')).join('\n'), pl.name+'.csv', 'text/csv');
-  toast('CSV geëxporteerd ✓','ok');
+  // Fix-13: CSV in Tune My Music-formaat (Track Name, Artist Name, Album Name, Playlist Name)
+  const csv = window.MuziekExport.bouwPlaylistCsv(pl, albums, trackItems);
+  dl(csv, window.MuziekExport.bestandsnaam(pl.name, 'csv'), 'text/csv;charset=utf-8');
+  toast('CSV opgeslagen. Importeer het bestand in Tune My Music om er een Deezer-playlist van te maken (zie Help).','ok');
 };
 function dl(content,name,type) { const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
 
@@ -3498,8 +3497,8 @@ function toast(msg,type) {
   const el=document.getElementById('toast');
   el.textContent=(type==='ok'?'✓ ':type==='err'?'⚠ ':'')+msg;
   el.className='toast show '+(type||'');
-  // Fix-7: foutmeldingen 6 sec zichtbaar, overige 3 sec
-  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'), type==='err' ? 6000 : 3000);
+  // Fix-7: foutmeldingen 6 sec zichtbaar, overige 3 sec. Fix-13: lange meldingen ook 6 sec
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'), (type==='err' || msg.length > 60) ? 6000 : 3000);
 }
 window.toast = toast;
 
@@ -3603,6 +3602,19 @@ help: `
     <strong style="color:var(--text)">Beheer → Favoriete Streamingsdienst</strong>. Op mobiel wordt de app direct geopend.
   </div>
 
+  <!-- Fix-13: playlist naar Deezer via CSV en Tune My Music -->
+  <div>
+    <div style="font-weight:600;color:var(--text);margin-bottom:6px">📤 Playlist naar Deezer (of Spotify)</div>
+    Een playlist rechtstreeks in Deezer of Spotify zetten kan deze app niet: Deezer laat geen nieuwe apps toe en Spotify vraagt daarvoor Premium voor de app-eigenaar.
+    Wel zo:
+    <ol style="padding-left:18px;margin-top:4px;display:flex;flex-direction:column;gap:3px">
+      <li>Open de playlist en tik op <strong style="color:var(--text)">↓ CSV</strong>.</li>
+      <li>Ga naar <a href="https://www.tunemymusic.com/transfer/csv-to-deezer" target="_blank" rel="noopener noreferrer" style="color:var(--deezer)">Tune My Music</a> en upload het bestand.</li>
+      <li>Kies Deezer als bestemming en log daar in. Tune My Music zoekt de nummers op en maakt de playlist aan.</li>
+    </ol>
+    Losse tracks worden het best gevonden. Hele albums staan in het bestand zonder tracktitel en worden daardoor vaak overgeslagen.
+  </div>
+
   <div>
     <div style="font-weight:600;color:var(--text);margin-bottom:6px">⚙️ Beheer</div>
     In de Beheer tab stel je in: drager types (CD, LP, Cassette…), opberglocaties, streamingsdienst en kun je albums importeren of toevoegen.
@@ -3618,7 +3630,7 @@ help: `
   <div style="display:flex;gap:8px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--border)">
     <button onclick="showInfoPage('privacy')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">🔒 Privacy</button>
     <button onclick="showInfoPage('disclaimer')" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer">⚠️ Disclaimer</button>
-    <span id="fixnummerHelpLabel" title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-12" style="margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-12</span>
+    <span id="fixnummerHelpLabel" data-fixnummer title="Versienummer — lang indrukken voor testoverzicht" tabindex="0" role="button" aria-label="Versienummer fix-13" style="-webkit-touch-callout:none;margin-left:auto;padding:6px 10px;font-size:11px;color:var(--muted);cursor:default;user-select:none;align-self:center">fix-13</span>
   </div>
 </div>`,
 
@@ -3755,48 +3767,87 @@ function openHelpFromHash() {
 openHelpFromHash();
 window.addEventListener('hashchange', openHelpFromHash);
 
-// Fix-3: fixnummer zichtbaar + lang indrukken voor testoverzicht
-(function attachFixnummerLongPress() {
-  const IDS = ['fixnummerLabel', 'fixnummerHelpLabel'];
+// Fix-13: testoverzicht — lang indrukken (~1 sec) op het fixnummer opent een overzicht
+// van de tests per fix. Het overzicht (testoverzicht.json) wordt gemaakt door scripts/versie.mjs
+// uit de git-geschiedenis. Werkt met touch, muis en toetsenbord (Enter/Spatie ingedrukt houden).
+(function testoverzichtLangIndrukken() {
   const HOLD_MS = 1000;
+  let timer = null;
 
-  function openTestoverzicht() {
-    // Testoverzicht-URL: GitHub blob per fix-branch (testbestanden)
-    const url = 'https://github.com/bruindav/MuziekApp/blob/fix-3/tests/e2e/app.spec.ts';
-    window.open(url, '_blank', 'noopener,noreferrer');
+  function start(el) {
+    stop();
+    timer = setTimeout(() => { timer = null; toonTestoverzicht(el); }, HOLD_MS);
   }
+  function stop() { if (timer) { clearTimeout(timer); timer = null; } }
 
-  IDS.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-
-    let timer = null;
-
-    // Touch (mobiel)
-    el.addEventListener('touchstart', () => {
-      timer = setTimeout(openTestoverzicht, HOLD_MS);
-    }, {passive: true});
-    el.addEventListener('touchend',  () => clearTimeout(timer), {passive: true});
-    el.addEventListener('touchmove', () => clearTimeout(timer), {passive: true});
-
-    // Muis (desktop)
-    el.addEventListener('mousedown', () => {
-      timer = setTimeout(openTestoverzicht, HOLD_MS);
-    });
-    el.addEventListener('mouseup',   () => clearTimeout(timer));
-    el.addEventListener('mouseleave',() => clearTimeout(timer));
-
-    // Toetsenbord (Enter of Spatie lang ingedrukt = minstens één keyup missen)
-    let keyHeld = false;
-    el.addEventListener('keydown', e => {
-      if ((e.key === 'Enter' || e.key === ' ') && !keyHeld) {
-        keyHeld = true;
-        timer = setTimeout(openTestoverzicht, HOLD_MS);
-      }
-    });
-    el.addEventListener('keyup', () => { keyHeld = false; clearTimeout(timer); });
+  // Event-delegatie: werkt ook voor het label op de helppagina, dat later in de DOM komt.
+  const doel = e => e.target.closest && e.target.closest('[data-fixnummer]');
+  document.addEventListener('pointerdown', e => { const el = doel(e); if (el) start(el); });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(t =>
+    document.addEventListener(t, e => { if (doel(e)) stop(); }, true));
+  document.addEventListener('contextmenu', e => { if (doel(e)) e.preventDefault(); });
+  document.addEventListener('keydown', e => {
+    const el = doel(e);
+    if (!el || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    if (!e.repeat) start(el);
   });
+  document.addEventListener('keyup', e => { if (doel(e)) stop(); });
 })();
+
+function testoverzichtSluiten() {
+  const ov = document.getElementById('testoverzichtOverlay');
+  if (!ov) return;
+  const terug = ov._terugFocus;
+  ov.remove();
+  if (terug && terug.focus) terug.focus();
+}
+window.testoverzichtSluiten = testoverzichtSluiten;
+
+async function toonTestoverzicht(bron) {
+  testoverzichtSluiten();
+  const ov = document.createElement('div');
+  ov.id = 'testoverzichtOverlay';
+  ov._terugFocus = bron || document.activeElement;
+  ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9000;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center';
+  ov.innerHTML =
+    '<div role="dialog" aria-modal="true" aria-labelledby="testoverzichtTitel" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:14px 14px 0 0;width:100%;max-width:640px;max-height:85vh;display:flex;flex-direction:column;box-sizing:border-box">' +
+      '<div style="display:flex;align-items:center;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border)">' +
+        '<h2 id="testoverzichtTitel" style="margin:0;font-size:16px;flex:1">🧪 Testoverzicht per fix</h2>' +
+        '<button type="button" aria-label="Sluiten" onclick="testoverzichtSluiten()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px">✕</button>' +
+      '</div>' +
+      '<div id="testoverzichtInhoud" style="overflow:auto;padding:12px 16px 24px;font-size:13px;line-height:1.5;overflow-wrap:anywhere" aria-live="polite">Testoverzicht laden…</div>' +
+    '</div>';
+  ov.addEventListener('click', e => { if (e.target === ov) testoverzichtSluiten(); });
+  ov.addEventListener('keydown', e => { if (e.key === 'Escape') testoverzichtSluiten(); });
+  document.body.appendChild(ov);
+  ov.querySelector('button').focus();
+
+  const inhoud = ov.querySelector('#testoverzichtInhoud');
+  try {
+    const res = await fetch('testoverzicht.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const fixes = (data && data.fixes) || [];
+    if (!fixes.length) { inhoud.textContent = 'Er zijn nog geen fixes met tests.'; return; }
+    inhoud.innerHTML = fixes.map(f => {
+      const kop = '<h3 style="margin:14px 0 6px;font-size:14px;color:var(--accent)">' + esc(f.fix) + '</h3>';
+      if (!f.bestanden || !f.bestanden.length)
+        return kop + '<div style="color:var(--muted)">Geen testbestanden gemaakt of aangepast.</div>';
+      return kop + f.bestanden.map(b =>
+        '<div style="margin:0 0 10px">' +
+          '<span style="font-size:11px;padding:1px 6px;border-radius:6px;border:1px solid var(--border);color:' + (b.status === 'nieuw' ? 'var(--green)' : 'var(--muted)') + '">' + esc(b.status) + '</span> ' +
+          '<a href="' + esc(b.url) + '" target="_blank" rel="noopener noreferrer" style="color:var(--text)">' + esc(b.pad) + '</a>' +
+          (b.tests && b.tests.length
+            ? '<ul style="margin:4px 0 0;padding-left:18px;color:var(--muted)">' + b.tests.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>'
+            : '') +
+        '</div>').join('');
+    }).join('');
+  } catch (err) {
+    inhoud.innerHTML = '<span style="color:var(--accent)">Testoverzicht kon niet worden geladen (' + esc(err.message) + ').</span>';
+  }
+}
+window.toonTestoverzicht = toonTestoverzicht;
 </script>
 </body>
 </html>

@@ -1,0 +1,4 @@
+# Fix: fix-13 — lokale bestanden die niet in de repo horen
+node_modules/
+test-results/
+playwright-report/

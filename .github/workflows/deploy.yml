@@ -1,17 +1,46 @@
-# MuziekApp V17 | .github/workflows/deploy.yml | Laatste wijziging: V17
-name: Deploy MuziekApp naar GitHub Pages
+# MuziekApp | .github/workflows/deploy.yml | Fix: fix-13 — tests en versiecontrole vóór elke deploy, ook op fix-branches
+name: Testen en deployen
 on:
   push:
-    branches: [main]
+    branches: [main, 'fix-*']
 permissions:
   contents: read
   pages: write
   id-token: write
 concurrency:
-  group: pages
+  group: ${{ github.ref == 'refs/heads/main' && 'pages' || github.ref }}
   cancel-in-progress: false
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # volledige geschiedenis nodig voor fixnummer en testoverzicht
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Fixnummer en testoverzicht controleren
+        run: npm run controleer
+      - name: Unit-tests
+        run: npm run test:unit
+      - name: Playwright-browser installeren
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end-tests (Playwright)
+        run: npm run test:e2e
+      - name: Playwright-rapport bewaren
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-rapport
+          path: playwright-report/
+          retention-days: 7
+
   deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
